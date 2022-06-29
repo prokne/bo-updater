@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="style.css" />
+
+    <!-- Google fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Amarante&family=Arima+Madurai:wght@900&family=Satisfy&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Font Awesome -->
+    <script
+      src="https://kit.fontawesome.com/869aa3ac96.js"
+      crossorigin="anonymous"
+    ></script>
+
+    <title>Bradavice Online Launcher</title>
+  </head>
+  <body>
+    <audio autoplay loop id="audio">
+      <source src="audio/audio.mp3" />
+    </audio>
+    <div class="background"></div>
+    <div class="content">
+      <button class="audio-btn">
+        <i class="fas fa-volume-up"></i>
+      </button>
+      <!-- <div class="news">
+        <h2>Poslední novinka</h2>
+        <div class="news-container">
+          <div class="card"></div>
+        </div>
+      </div> -->
+    </div>
+
+    <div class="loading-section">
+      <div class="left">
+        <div class="download-section">
+          <div class="patch-info">
+            <ul class="patch-info-list">
+              <li>Patch-H</li>
+              <span class="patch-H"><i class="fas fa-times"></i></span>
+              <li>Patch-S</li>
+              <span class="patch-S"><i class="fas fa-times"></i></span>
+              <li>Patch-P</li>
+              <span class="patch-P"><i class="fas fa-times"></i></span>
+              <li>Patch-T</li>
+              <span class="patch-T"><i class="fas fa-times"></i></span>
+            </ul>
+          </div>
+          <div class="loading-bar">
+            <div class="progress"></div>
+            <div class="progress-num">100%</div>
+          </div>
+        </div>
+        <div class="download-info">Hledám dostupné aktualizace</div>
+      </div>
+
+      <div class="right">
+        <button class="play-btn" disabled type="button">HRÁT</button>
+      </div>
+    </div>
+    <script type="text/javascript" src="render.js"></script>
+  </body>
+</html>

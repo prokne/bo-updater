@@ -1,0 +1,179 @@
+html,
+body {
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  font-family: "Montserrat", sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+  font-family: "Montserrat", sans-serif;
+}
+
+h2 {
+  color: seashell;
+  font-weight: 700;
+  font-size: 2.5rem;
+  margin-top: 7%;
+}
+
+.wrapper {
+  position: relative;
+}
+
+.background {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background-image: linear-gradient(
+      to bottom,
+      rgba(163, 163, 163, 0.3) 30%,
+      rgba(22, 33, 62, 0.6) 60%,
+      hsl(223, 48%, 16%) 85%,
+      hsl(223, 48%, 16%) 100%
+    ),
+    url("./images/img_landing_page.jpg");
+  background-size: cover;
+  background-position: 50% 60%;
+  background-color: red;
+  height: 100%;
+  width: 100%;
+  z-index: -1;
+}
+
+.content {
+  height: 70%;
+  background: no;
+}
+
+.audio-btn {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+}
+.news {
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  flex-direction: column;
+}
+
+.news-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-evenly;
+}
+
+.card {
+  background: #16213e8c;
+  -webkit-box-shadow: 10px 10px 30px 0px rgba(0, 0, 0, 0.5);
+  -moz-box-shadow: 10px 10px 30px 0px rgba(0, 0, 0, 0.5);
+  box-shadow: 10px 10px 30px 0px rgba(0, 0, 0, 0.5);
+  width: 800px;
+  height: 350px;
+  margin: 1%;
+}
+
+.patch-info {
+  display: block;
+  padding-bottom: 10px;
+}
+
+.patch-info-list {
+  padding: 0;
+  margin: 0;
+}
+.patch-info-list li {
+  display: inline-block;
+  padding: 0px 20px;
+  color: aliceblue;
+}
+
+.patch-info-list li:nth-child(1) {
+  padding: 0px 20px 0 0;
+}
+
+.fa-check {
+  color: #6dff8d;
+}
+.fa-times {
+  color: #e94560;
+}
+
+.loading-section {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 30%;
+  justify-content: space-around;
+}
+
+.left {
+  display: flex;
+  flex-direction: column;
+}
+
+.download-section {
+  text-align: center;
+}
+
+.loading-bar {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  height: 30px;
+  width: 100%;
+  border: 2px solid #1a1a2e;
+  border-radius: 10px;
+  background-color: #0f3460;
+}
+
+.progress-num {
+  color: whitesmoke;
+  position: absolute;
+  font-size: 0.8rem;
+  margin: auto;
+  left: 30%;
+}
+
+.progress {
+  background-color: #ff6b6b;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+}
+
+.download-info {
+  text-align: left;
+  color: whitesmoke;
+  font-size: 10px;
+  padding-top: 10px;
+}
+
+.play-btn {
+  margin-left: 50px;
+  width: 150px;
+  height: 80px;
+  background-color: #e94560;
+  color: cornsilk;
+  border: none;
+  border-radius: 20px;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.play-btn:disabled {
+  background-color: #d8b0b0;
+}
+
+.play-btn:hover:enabled {
+  background-color: crimson;
+}
