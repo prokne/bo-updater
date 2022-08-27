@@ -7,6 +7,27 @@ const { resolve } = require("path");
 const { spawn } = require("child_process");
 const rootPath = require("electron-root-path").rootPath;
 
+const URL = "https://bradavice-online.cz/patches/";
+let localDataObject = {
+  patches: {
+    "patch-H": 0,
+    "patch-S": 0,
+    "patch-P": 0,
+    "patch-T": 0,
+  },
+  options: {
+    muted: false,
+    night: true,
+  },
+};
+let serverPatcheInfoData = {
+  "patch-H": 0,
+  "patch-S": 0,
+  "patch-P": 0,
+  "patch-T": 0,
+};
+let isFinishedUpdating = false;
+
 //Gets serverPatche.json from server to find out whether there are any new updates
 function getServerPatcheInfo() {
   return new Promise((resolve, reject) => {
@@ -87,8 +108,141 @@ function writeFile(fileName, data) {
   });
 }
 
+//Compares local patche.json vs serverPatche.json and returns list of patches, which needs to be downloaded
+async function isUpToDate() {
+  const localPatcheData = await readFile("patche.json");
+  let serverPatcheData = await getServerPatcheInfo();
+
+  localDataObject = localPatcheData;
+  serverPatcheInfoData = serverPatcheData;
+
+  win.webContents.send("is-muted", localPatcheData.options.muted);
+  win.webContents.send("is-night", localPatcheData.options.night);
+
+  const list = [];
+
+  Object.keys(localPatcheData.patches).forEach((key, index) => {
+    console.log("checkuju pathe");
+    if (localPatcheData.patches[key] < serverPatcheData[key]) {
+      list.push(key);
+    }
+    if (localPatcheData.patches[key] === serverPatcheData[key]) {
+      console.log(key);
+      win.webContents.send("check-patche", key);
+    }
+  });
+
+  return list;
+}
+
+//Downloads out-of-date patches
+async function downloadPatches(downloadList) {
+  for (let i = 0; i < downloadList.length; i++) {
+    let filename = downloadList[i] + ".MPQ";
+    win.webContents.send("info", "Stahuji " + downloadList[i]);
+    console.log("Stahuji " + downloadList[i]);
+    await downloadFile(URL + `${filename}`, downloadList[i] + ".MPQ").then(
+      () => {
+        console.log("File downloaded!");
+        win.webContents.send("check-patche", downloadList[i]);
+        localDataObject.patches[downloadList[i]] =
+          serverPatcheInfoData[downloadList[i]];
+        let dataToSave = JSON.stringify(localDataObject);
+        console.log(localDataObject);
+        writeFile("patche.json", dataToSave);
+      }
+    );
+  }
+  win.webContents.send("info", "Vaše patche jsou aktuální");
+
+  //delete Cache
+  fs.rmdir("../Cache", { recursive: true }, (err) => {
+    if (err) {
+      console.log(err);
+    } else {
+      console.log("Deleted Cache");
+    }
+  });
+  isFinishedUpdating = true;
+  win.webContents.send("playable", true);
+}
+
+function main() {
+  if (!fs.existsSync("patche.json")) {
+    writeFile("patche.json", JSON.stringify(localDataObject));
+  }
+
+  isUpToDate().then((downloadList) => {
+    console.log(downloadList.length);
+    if (downloadList.length === 0) {
+      win.webContents.send("info", "Vaše patche jsou aktuální");
+      isFinishedUpdating = true;
+      win.webContents.send("playable", true);
+    } else {
+      downloadPatches(downloadList);
+    }
+  });
+
+  ipcMain.on("mute", (event, isMuted) => {
+    localDataObject.options.muted = isMuted;
+    writeFile("patche.json", JSON.stringify(localDataObject));
+  });
+
+  //When user checks or unchecks the night checkbox
+  ipcMain.on("night-check", (event, checked) => {
+    localDataObject.options.night = checked;
+    writeFile("patche.json", JSON.stringify(localDataObject));
+    win.webContents.send("playable", false);
+
+    //if checkbox is checked -> delete patch-U
+    if (checked) {
+      fs.rmdir("../Data/patch-U.MPQ", { recursive: true }, (err) => {
+        if (err) {
+          console.log(err);
+        } else {
+          console.log("Deleted patch-U");
+          if (isFinishedUpdating) {
+            win.webContents.send("playable", true);
+          }
+        }
+      });
+    }
+    //else download patch-U
+    else {
+      https.get(URL + "patch-U.MPQ", (res) => {
+        const writeStream = fs.createWriteStream("../Data/patch-U.MPQ");
+        res.pipe(writeStream);
+        writeStream.on("finish", () => {
+          writeStream.close();
+          console.log("patch-U downloaded");
+          if (isFinishedUpdating) {
+            win.webContents.send("playable", true);
+          }
+        });
+      });
+    }
+  });
+
+  ipcMain.on("close-me", (event, args) => {
+    const subprocess = spawn(
+      "../Wow.exe",
+      [],
+      { detached: true, stdio: "ignore" },
+      (err, stdout, stderr) => {
+        if (err) {
+          console.log(err);
+        } else {
+          console.log(stdout);
+        }
+      }
+    );
+    subprocess.unref();
+    app.quit();
+  });
+}
+
 function createWindow() {
-  win = new BrowserWindow({
+  return new BrowserWindow({
     backgroundColor: "#16213e",
     width: 900,
     height: 600,
@@ -101,108 +255,13 @@ function createWindow() {
     },
     icon: __dirname + "/icons/bo.ico",
   });
+}
 
+app.on("ready", () => {
+  win = createWindow();
   win.loadFile("index.html");
-}
-
-app.whenReady().then(createWindow);
-
-const URL = "https://bradavice-online.cz/patches/";
-let patcheInfoData = { "patch-H": 0, "patch-S": 0, "patch-P": 0, "patch-T": 0 };
-let serverPatcheInfoData = {
-  "patch-H": 0,
-  "patch-S": 0,
-  "patch-P": 0,
-  "patch-T": 0,
-};
-
-//Compares local patche.json vs serverPatche.json and returns list of patches, which needs to be downloaded
-async function isUpToDate() {
-  let localPatcheData = await readFile("patche.json");
-  let serverPatcheData = await getServerPatcheInfo();
-
-  patcheInfoData = localPatcheData;
-  serverPatcheInfoData = serverPatcheData;
-
-  const list = [];
-
-  Object.keys(localPatcheData).forEach((key, index) => {
-    console.log("checkuju pathe");
-    if (localPatcheData[key] < serverPatcheData[key]) {
-      list.push(key);
-    }
-    if (localPatcheData[key] === serverPatcheData[key]) {
-      win.webContents.on("did-finish-load", () => {
-        console.log(key);
-        win.webContents.send("check-patche", key);
-      });
-    }
+  // win.webContents.openDevTools();
+  win.webContents.on("ready-to-show", () => {
+    main();
   });
-
-  return list;
-}
-
-//Downloads out-of-date patches
-async function downloadPatches(downloadList) {
-  for (let i = 0; i < downloadList.length; i++) {
-    let filename = downloadList[i] + ".MPQ";
-    win.webContents.on("did-finish-load", () => {
-      win.webContents.send("info", "Stahuji " + downloadList[i]);
-    });
-    await downloadFile(URL + `${filename}`, downloadList[i] + ".MPQ").then(
-      () => {
-        console.log("File downloaded!");
-        win.webContents.send("check-patche", downloadList[i]);
-        patcheInfoData[downloadList[i]] = serverPatcheInfoData[downloadList[i]];
-        let dataToSave = JSON.stringify(patcheInfoData);
-        writeFile("patche.json", dataToSave);
-      }
-    );
-  }
-  win.webContents.send("info", "Vaše patche jsou aktuální");
-  win.webContents.send("playable", true);
-
-  //delete Cache
-  fs.rmdir("../Cache", { recursive: true }, (err) => {
-    if (err) {
-      console.log(err);
-    } else {
-      console.log("Deleted Cache");
-    }
-  });
-}
-
-let patchestToDownload = [];
-
-if (!fs.existsSync("patche.json")) {
-  writeFile("patche.json", JSON.stringify(patcheInfoData));
-}
-
-isUpToDate().then((downloadList) => {
-  console.log(downloadList.length);
-  if (downloadList.length === 0) {
-    win.webContents.on("did-finish-load", () => {
-      win.webContents.send("info", "Vaše patche jsou aktuální");
-      win.webContents.send("playable", true);
-    });
-  } else {
-    downloadPatches(downloadList);
-  }
-});
-
-ipcMain.on("close-me", (event, args) => {
-  const subprocess = spawn(
-    "../Wow.exe",
-    [],
-    { detached: true, stdio: "ignore" },
-    (err, stdout, stderr) => {
-      if (err) {
-        console.log(err);
-      } else {
-        console.log(stdout);
-      }
-    }
-  );
-  subprocess.unref();
-  app.quit();
 });

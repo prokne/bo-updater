@@ -32,11 +32,11 @@ h2 {
   background-image: linear-gradient(
       to bottom,
       rgba(163, 163, 163, 0.3) 30%,
-      rgba(22, 33, 62, 0.6) 60%,
-      hsl(223, 48%, 16%) 85%,
-      hsl(223, 48%, 16%) 100%
+      #65565185 60%,
+      #362620d6 75%,
+      #362620 90%
     ),
-    url("./images/img_landing_page.jpg");
+    url("./images/launcher.png");
   background-size: cover;
   background-position: 50% 60%;
   background-color: red;
@@ -50,14 +50,35 @@ h2 {
   background: no;
 }
 
-.audio-btn {
+.controls {
   position: absolute;
   right: 20px;
   top: 20px;
+  align-items: center;
+}
+
+.audio-btn {
   background: none;
   border: none;
   font-size: 1.8rem;
+  color: whitesmoke;
+  display: flex;
+  margin: auto;
+  padding: 15px;
 }
+
+.dark-night-control {
+  color: whitesmoke;
+}
+
+.dark-night-control input {
+  vertical-align: middle;
+}
+
+.dark-night-control input::before {
+  background-color: #e94560;
+}
+
 .news {
   display: flex;
   justify-content: space-evenly;
@@ -133,7 +154,7 @@ h2 {
   width: 100%;
   border: 2px solid #1a1a2e;
   border-radius: 10px;
-  background-color: #0f3460;
+  background-color: #bba293;
 }
 
 .progress-num {

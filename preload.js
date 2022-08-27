@@ -16,6 +16,18 @@ const API = {
   closeApp: () => {
     ipcRenderer.send("close-me");
   },
+  handleAudioButton: (isMuted) => {
+    ipcRenderer.send("mute", isMuted);
+  },
+  isMuted: (callback) => {
+    ipcRenderer.on("is-muted", callback);
+  },
+  handleNightChecbox: (checked) => {
+    ipcRenderer.send("night-check", checked);
+  },
+  isNight: (callback) => {
+    ipcRenderer.on("is-night", callback);
+  },
 };
 
 contextBridge.exposeInMainWorld("api", API);
