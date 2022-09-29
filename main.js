@@ -108,6 +108,17 @@ function writeFile(fileName, data) {
   });
 }
 
+//Delete Cache
+function deleteCache() {
+  fs.rmdir("../Cache", { recursive: true }, (err) => {
+    if (err) {
+      console.log(err);
+    } else {
+      console.log("Deleted Cache");
+    }
+  });
+}
+
 //Compares local patche.json vs serverPatche.json and returns list of patches, which needs to be downloaded
 async function isUpToDate() {
   const localPatcheData = await readFile("patche.json");
@@ -156,13 +167,8 @@ async function downloadPatches(downloadList) {
   win.webContents.send("info", "Vaše patche jsou aktuální");
 
   //delete Cache
-  fs.rmdir("../Cache", { recursive: true }, (err) => {
-    if (err) {
-      console.log(err);
-    } else {
-      console.log("Deleted Cache");
-    }
-  });
+  deleteCache();
+
   isFinishedUpdating = true;
   win.webContents.send("playable", true);
 }
@@ -176,6 +182,7 @@ function main() {
     console.log(downloadList.length);
     if (downloadList.length === 0) {
       win.webContents.send("info", "Vaše patche jsou aktuální");
+      deleteCache();
       isFinishedUpdating = true;
       win.webContents.send("playable", true);
     } else {
