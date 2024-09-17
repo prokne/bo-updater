@@ -12,6 +12,13 @@ const progressNum = document.querySelector(".progress-num");
 const info = document.querySelector(".download-info");
 const button = document.querySelector(".play-btn");
 const nightCheckbox = document.querySelector(".night-checbox");
+const darkNightControl = document.querySelector(".dark-night-control");
+
+window.api.isGmOn((event, GM_ON) => {
+  if (!GM_ON) {
+    darkNightControl.style.display = "none";
+  }
+});
 
 nightCheckbox.addEventListener("click", (e) => {
   e.target.checked;

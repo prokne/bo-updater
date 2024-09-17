@@ -7,19 +7,37 @@ const { resolve } = require("path");
 const { spawn } = require("child_process");
 const rootPath = require("electron-root-path").rootPath;
 
+let GM_ON = true;
+
 const URL = "https://bradavice-online.cz/patches/";
-let localDataObject = {
-  patches: {
-    "patch-H": 0,
-    "patch-S": 0,
-    "patch-P": 0,
-    "patch-T": 0,
-  },
-  options: {
-    muted: false,
-    night: true,
-  },
-};
+
+let localDataObject;
+
+GM_ON
+  ? (localDataObject = {
+      patches: {
+        "patch-H": 0,
+        "patch-S": 0,
+        "patch-P": 0,
+        "patch-T": 0,
+      },
+      options: {
+        muted: false,
+        night: true,
+      },
+    })
+  : (localDataObject = {
+      patches: {
+        "patch-H": 0,
+        "patch-S": 0,
+        "patch-P": 0,
+        "patch-T": 0,
+      },
+      options: {
+        muted: false,
+      },
+    });
+
 let serverPatcheInfoData = {
   "patch-H": 0,
   "patch-S": 0,
@@ -128,7 +146,9 @@ async function isUpToDate() {
   serverPatcheInfoData = serverPatcheData;
 
   win.webContents.send("is-muted", localPatcheData.options.muted);
-  win.webContents.send("is-night", localPatcheData.options.night);
+  if (GM_ON) {
+    win.webContents.send("is-night", localPatcheData.options.night);
+  }
 
   const list = [];
 
@@ -174,6 +194,8 @@ async function downloadPatches(downloadList) {
 }
 
 function main() {
+  win.webContents.send("is-gm-on", GM_ON);
+
   if (!fs.existsSync("patche.json")) {
     writeFile("patche.json", JSON.stringify(localDataObject));
   }
@@ -196,39 +218,41 @@ function main() {
   });
 
   //When user checks or unchecks the night checkbox
-  ipcMain.on("night-check", (event, checked) => {
-    localDataObject.options.night = checked;
-    writeFile("patche.json", JSON.stringify(localDataObject));
-    win.webContents.send("playable", false);
+  if (GM_ON) {
+    ipcMain.on("night-check", (event, checked) => {
+      localDataObject.options.night = checked;
+      writeFile("patche.json", JSON.stringify(localDataObject));
+      win.webContents.send("playable", false);
 
-    //if checkbox is checked -> delete patch-U
-    if (checked) {
-      fs.rmdir("../Data/patch-U.MPQ", { recursive: true }, (err) => {
-        if (err) {
-          console.log(err);
-        } else {
-          console.log("Deleted patch-U");
-          if (isFinishedUpdating) {
-            win.webContents.send("playable", true);
-          }
-        }
-      });
-    }
-    //else download patch-U
-    else {
-      https.get(URL + "patch-U.MPQ", (res) => {
-        const writeStream = fs.createWriteStream("../Data/patch-U.MPQ");
-        res.pipe(writeStream);
-        writeStream.on("finish", () => {
-          writeStream.close();
-          console.log("patch-U downloaded");
-          if (isFinishedUpdating) {
-            win.webContents.send("playable", true);
+      //if checkbox is checked -> delete patch-U
+      if (checked) {
+        fs.rmdir("../Data/patch-U.MPQ", { recursive: true }, (err) => {
+          if (err) {
+            console.log(err);
+          } else {
+            console.log("Deleted patch-U");
+            if (isFinishedUpdating) {
+              win.webContents.send("playable", true);
+            }
           }
         });
-      });
-    }
-  });
+      }
+      //else download patch-U
+      else {
+        https.get(URL + "patch-U.MPQ", (res) => {
+          const writeStream = fs.createWriteStream("../Data/patch-U.MPQ");
+          res.pipe(writeStream);
+          writeStream.on("finish", () => {
+            writeStream.close();
+            console.log("patch-U downloaded");
+            if (isFinishedUpdating) {
+              win.webContents.send("playable", true);
+            }
+          });
+        });
+      }
+    });
+  }
 
   ipcMain.on("close-me", (event, args) => {
     const subprocess = spawn(
@@ -267,7 +291,7 @@ function createWindow() {
 app.on("ready", () => {
   win = createWindow();
   win.loadFile("index.html");
-  // win.webContents.openDevTools();
+  //win.webContents.openDevTools();
   win.webContents.on("ready-to-show", () => {
     main();
   });

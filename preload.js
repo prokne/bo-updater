@@ -28,6 +28,9 @@ const API = {
   isNight: (callback) => {
     ipcRenderer.on("is-night", callback);
   },
+  isGmOn: (callback) => {
+    ipcRenderer.on("is-gm-on", callback);
+  },
 };
 
 contextBridge.exposeInMainWorld("api", API);
