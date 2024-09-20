@@ -6,6 +6,16 @@ const path = require("path");
 const { resolve } = require("path");
 const { spawn } = require("child_process");
 const rootPath = require("electron-root-path").rootPath;
+const { autoUpdater } = require("electron-updater")
+
+if (process.env.IS_DEV){
+  autoUpdater.forceDevUpdateConfig = true;
+}
+
+const localVersionInfoPath = app.getPath("userData");
+
+autoUpdater.logger = require("electron-log")
+autoUpdater.logger.transports.file.level = "info"
 
 let GM_ON = true;
 
@@ -139,7 +149,7 @@ function deleteCache() {
 
 //Compares local patche.json vs serverPatche.json and returns list of patches, which needs to be downloaded
 async function isUpToDate() {
-  const localPatcheData = await readFile("patche.json");
+  const localPatcheData = await readFile(`${localVersionInfoPath}/patche.json`);
   let serverPatcheData = await getServerPatcheInfo();
 
   localDataObject = localPatcheData;
@@ -180,7 +190,7 @@ async function downloadPatches(downloadList) {
           serverPatcheInfoData[downloadList[i]];
         let dataToSave = JSON.stringify(localDataObject);
         console.log(localDataObject);
-        writeFile("patche.json", dataToSave);
+        writeFile(`${localVersionInfoPath}/patche.json`, dataToSave);
       }
     );
   }
@@ -196,8 +206,8 @@ async function downloadPatches(downloadList) {
 function main() {
   win.webContents.send("is-gm-on", GM_ON);
 
-  if (!fs.existsSync("patche.json")) {
-    writeFile("patche.json", JSON.stringify(localDataObject));
+  if (!fs.existsSync(`${localVersionInfoPath}/patche.json`)) {
+    writeFile(`${localVersionInfoPath}/patche.json`, JSON.stringify(localDataObject));
   }
 
   isUpToDate().then((downloadList) => {
@@ -214,14 +224,14 @@ function main() {
 
   ipcMain.on("mute", (event, isMuted) => {
     localDataObject.options.muted = isMuted;
-    writeFile("patche.json", JSON.stringify(localDataObject));
+    writeFile(`${localVersionInfoPath}/patche.json`, JSON.stringify(localDataObject));
   });
 
   //When user checks or unchecks the night checkbox
   if (GM_ON) {
     ipcMain.on("night-check", (event, checked) => {
       localDataObject.options.night = checked;
-      writeFile("patche.json", JSON.stringify(localDataObject));
+      writeFile(`${localVersionInfoPath}/patche.json`, JSON.stringify(localDataObject));
       win.webContents.send("playable", false);
 
       //if checkbox is checked -> delete patch-U
@@ -272,11 +282,27 @@ function main() {
   });
 }
 
-function createWindow() {
+function createWindow(width, height) {
   return new BrowserWindow({
     backgroundColor: "#16213e",
-    width: 900,
-    height: 600,
+    width,
+    height,
+    resizable: false,
+    autoHideMenuBar: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname + "/preload.js"),
+    },
+    icon: __dirname + "/icons/bo.ico",
+  });
+}
+
+function createUpdateWindow() {
+  return new BrowserWindow({
+    backgroundColor: "#16213e",
+    width: 300,
+    height: 400,
     resizable: false,
     autoHideMenuBar: true,
     webPreferences: {
@@ -289,10 +315,37 @@ function createWindow() {
 }
 
 app.on("ready", () => {
-  win = createWindow();
+  autoUpdater.checkForUpdatesAndNotify()
+  // win = createWindow();
+  // win.loadFile("index.html");
+  // //win.webContents.openDevTools();
+  // win.webContents.on("ready-to-show", () => {
+  //   main();
+  // });
+
+});
+
+
+autoUpdater.on('update-not-available', (info) => {
+  win = createWindow(900,600);
   win.loadFile("index.html");
   //win.webContents.openDevTools();
   win.webContents.on("ready-to-show", () => {
     main();
   });
-});
+})
+
+autoUpdater.on('update-available', (info) => {
+  win = createWindow(300,400);
+  win.loadFile("updateWindow.html");
+  //win.webContents.openDevTools();
+})
+
+autoUpdater.on('download-progress', (progressObj) => {
+  console.log("progressObj", progressObj);
+  win.webContents.send("download-progress", Math.floor(progressObj.percent));
+})
+
+autoUpdater.on('update-downloaded', (info) => {
+  autoUpdater.quitAndInstall(true,true);
+})

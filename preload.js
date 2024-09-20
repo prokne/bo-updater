@@ -31,6 +31,9 @@ const API = {
   isGmOn: (callback) => {
     ipcRenderer.on("is-gm-on", callback);
   },
+  testik: (callback) => {
+    ipcRenderer.on("testik", callback);
+  },
 };
 
 contextBridge.exposeInMainWorld("api", API);

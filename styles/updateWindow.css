@@ -1,0 +1,47 @@
+body {
+    background-color: #120c25;
+    color: seashell;
+    font-family: "Montserrat", sans-serif;
+    font-size: 13px
+}
+
+.content{
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.logo{
+    width: 100%;
+}
+
+.notification{
+    text-align: center;
+}
+
+.loading-bar {
+    margin-top: 20px;
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+    height: 10px;
+    width: 100%;
+    border: 2px solid #1a1a2e;
+    border-radius: 10px;
+    background-color: #362648;
+  }
+  
+  .progress-num {
+    color: whitesmoke;
+    position: absolute;
+    font-size: 0.5rem;
+    margin: auto;
+    left: 47%;
+  }
+  
+  .progress {
+    background-color: #7857e5;
+    width: 0%;
+    height: 100%;
+    border-radius: 10px;
+  }

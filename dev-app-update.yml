@@ -1,0 +1,4 @@
+owner: prokne
+repo: bo-updater
+provider: github
+updaterCacheDirName: bo_updater-updater

@@ -1,8 +1,9 @@
 node_modules/
-images/
 audio/
 icons/
 *.MPQ
 .mpq
 dist/
 build/
+out/
+.env

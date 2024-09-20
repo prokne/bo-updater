@@ -69,6 +69,7 @@ window.api.checkPatche((event, patchName) => {
 });
 
 window.api.downloadProgress((event, percent) => {
+  console.log("test")
   progressBar.style.width = `${percent}%`;
   progressNum.textContent = `${percent}%`;
 });
@@ -84,3 +85,7 @@ window.api.isPlayable((event, playable) => {
     button.disabled = true;
   }
 });
+
+window.api.testik((event,string)=>{
+  console.log(string)
+})

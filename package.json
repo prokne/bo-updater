@@ -1,19 +1,27 @@
 {
-  "name": "bo_updater",
-  "version": "2.1.1",
+  "name": "bo-updater",
+  "version": "2.1.6",
   "description": "Bradavice Online Launcher",
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "electron .",
-    "dist": "electron-builder"
+    "start": "env-cmd electron .",
+    "build": "env-cmd electron-builder --publish never",
+    "release": "env-cmd electron-builder"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/prokne/bo-updater.git"
   },
   "author": "Bradavice Online",
   "license": "ISC",
   "dependencies": {
-    "custom-electron-titlebar": "^3.2.7",
+    "custom-electron-titlebar": "^4.2.8",
+    "electron-log": "^5.2.0",
     "electron-root-path": "^1.0.16",
-    "electron-squirrel-startup": "^1.0.0"
+    "electron-squirrel-startup": "^1.0.0",
+    "electron-updater": "^6.3.4",
+    "env-cmd": "^10.1.0"
   },
   "build": {
     "appId": "com.bo.bo-updater",
@@ -21,46 +29,14 @@
     "win": {
       "target": "nsis",
       "icon": "build/icon.ico",
-      "artifactName": "BO Launcher.exe"
+      "artifactName": "BO Launcher.exe",
+      "publish": [
+        "github"
+      ]
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
-    }
-  },
-  "devDependencies": {
-    "@electron-forge/cli": "^6.0.0-beta.64",
-    "@electron-forge/maker-deb": "^6.0.0-beta.64",
-    "@electron-forge/maker-rpm": "^6.0.0-beta.64",
-    "@electron-forge/maker-squirrel": "^6.0.0-beta.64",
-    "@electron-forge/maker-zip": "^6.0.0-beta.64",
-    "electron": "^13.6.9"
-  },
-  "config": {
-    "forge": {
-      "packagerConfig": {},
-      "makers": [
-        {
-          "name": "@electron-forge/maker-squirrel",
-          "config": {
-            "name": "bo_updater"
-          }
-        },
-        {
-          "name": "@electron-forge/maker-zip",
-          "platforms": [
-            "darwin"
-          ]
-        },
-        {
-          "name": "@electron-forge/maker-deb",
-          "config": {}
-        },
-        {
-          "name": "@electron-forge/maker-rpm",
-          "config": {}
-        }
-      ]
     }
   }
 }
