@@ -204,6 +204,8 @@ async function downloadPatches(downloadList) {
 }
 
 function main() {
+  GM_ON = fs.existsSync(`${localVersionInfoPath}/.enhanced-options`)
+  
   win.webContents.send("is-gm-on", GM_ON);
 
   if (!fs.existsSync(`${localVersionInfoPath}/patche.json`)) {
