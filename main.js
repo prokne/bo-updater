@@ -12,7 +12,7 @@ if (process.env.IS_DEV){
   autoUpdater.forceDevUpdateConfig = true;
 }
 
-const localVersionInfoPath = app.getPath("userData");
+const userDataPath = app.getPath("userData");
 
 autoUpdater.logger = require("electron-log")
 autoUpdater.logger.transports.file.level = "info"
@@ -149,7 +149,7 @@ function deleteCache() {
 
 //Compares local patche.json vs serverPatche.json and returns list of patches, which needs to be downloaded
 async function isUpToDate() {
-  const localPatcheData = await readFile(`${localVersionInfoPath}/patche.json`);
+  const localPatcheData = await readFile(`${userDataPath}/patche.json`);
   let serverPatcheData = await getServerPatcheInfo();
 
   localDataObject = localPatcheData;
@@ -190,7 +190,7 @@ async function downloadPatches(downloadList) {
           serverPatcheInfoData[downloadList[i]];
         let dataToSave = JSON.stringify(localDataObject);
         console.log(localDataObject);
-        writeFile(`${localVersionInfoPath}/patche.json`, dataToSave);
+        writeFile(`${userDataPath}/patche.json`, dataToSave);
       }
     );
   }
@@ -204,12 +204,12 @@ async function downloadPatches(downloadList) {
 }
 
 function main() {
-  GM_ON = fs.existsSync(`${localVersionInfoPath}/.enhanced-options`)
+  GM_ON = fs.existsSync(`${userDataPath}/.enhanced-options`)
   
   win.webContents.send("is-gm-on", GM_ON);
 
-  if (!fs.existsSync(`${localVersionInfoPath}/patche.json`)) {
-    writeFile(`${localVersionInfoPath}/patche.json`, JSON.stringify(localDataObject));
+  if (!fs.existsSync(`${userDataPath}/patche.json`)) {
+    writeFile(`${userDataPath}/patche.json`, JSON.stringify(localDataObject));
   }
 
   isUpToDate().then((downloadList) => {
@@ -226,14 +226,14 @@ function main() {
 
   ipcMain.on("mute", (event, isMuted) => {
     localDataObject.options.muted = isMuted;
-    writeFile(`${localVersionInfoPath}/patche.json`, JSON.stringify(localDataObject));
+    writeFile(`${userDataPath}/patche.json`, JSON.stringify(localDataObject));
   });
 
   //When user checks or unchecks the night checkbox
   if (GM_ON) {
     ipcMain.on("night-check", (event, checked) => {
       localDataObject.options.night = checked;
-      writeFile(`${localVersionInfoPath}/patche.json`, JSON.stringify(localDataObject));
+      writeFile(`${userDataPath}/patche.json`, JSON.stringify(localDataObject));
       win.webContents.send("playable", false);
 
       //if checkbox is checked -> delete patch-U
