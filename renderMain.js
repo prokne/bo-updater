@@ -13,6 +13,8 @@ const info = document.querySelector(".download-info");
 const button = document.querySelector(".play-btn");
 const nightCheckbox = document.querySelector(".night-checbox");
 const darkNightControl = document.querySelector(".dark-night-control");
+const closeBtn = document.querySelector(".close");
+const minimizeBtn = document.querySelector(".minimize");
 
 window.api.isGmOn((event, GM_ON) => {
   if (!GM_ON) {
@@ -39,11 +41,11 @@ window.api.isNight((event, isNight) => {
 audioBtn.addEventListener("click", () => {
   if (audio.muted === false) {
     audio.muted = true;
-    audioBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+    audioBtn.innerHTML = '<img src="./images/audio/SPEAK_OFF.png" alt="">';
     window.api.handleAudioButton(true);
   } else {
     audio.muted = false;
-    audioBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+    audioBtn.innerHTML = '<img src="./images/audio/SPEAK_ON.png" alt="">';
     window.api.handleAudioButton(false);
   }
 });
@@ -51,21 +53,29 @@ audioBtn.addEventListener("click", () => {
 window.api.isMuted((event, isMuted) => {
   audio.muted = isMuted;
   if (isMuted) {
-    audioBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+    audioBtn.innerHTML = '<img src="./images/audio/SPEAK_OFF.png" alt="">';
   } else {
-    audioBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+    audioBtn.innerHTML = '<img src="./images/audio/SPEAK_ON.png" alt="">';
   }
 });
 
 button.addEventListener("click", () => {
-  window.api.closeApp();
+  window.api.launchWOw();
 });
+
+closeBtn.addEventListener("click", () =>{
+  window.api.closeApp();
+})
+
+minimizeBtn.addEventListener("click", () =>{
+  window.api.minimizeApp();
+})
 
 window.api.checkPatche((event, patchName) => {
   console.log(event);
   document.querySelector(
     `.${patchName}`
-  ).innerHTML = `<i class="fa-solid fa-check"></i>`;
+  ).innerHTML = `<img class="checker" src="./images/checks/Patch_YES.png" alt=""/>`;
 });
 
 window.api.downloadProgress((event, percent) => {

@@ -29,11 +29,18 @@
       <source src="audio/audio.mp3" />
     </audio>
     <div class="background"></div>
+    <div class="title-bar"></div>
     <div class="content">
       <div class="controls">
-        <button class="audio-btn">
-          <i class="fas fa-volume-up"></i>
-        </button>
+        <div class="row">
+          <button class="audio-btn">
+            <img src="./images/audio/SPEAK_ON.png" alt="">
+          </button>
+          <div class="bar-controls">
+            <button class="window-control-btn minimize"></button>
+            <button class="window-control-btn close"></button>
+          </div>
+        </div>
         <div class="dark-night-control">
           <label for="night">Temná noc</label>
           <input
@@ -54,30 +61,46 @@
     </div>
 
     <div class="loading-section">
-      <div class="left">
-        <div class="download-section">
-          <div class="patch-info">
-            <ul class="patch-info-list">
-              <li>Patch-H</li>
-              <span class="patch-H"><i class="fas fa-times"></i></span>
-              <li>Patch-S</li>
-              <span class="patch-S"><i class="fas fa-times"></i></span>
-              <li>Patch-P</li>
-              <span class="patch-P"><i class="fas fa-times"></i></span>
-              <li>Patch-T</li>
-              <span class="patch-T"><i class="fas fa-times"></i></span>
-            </ul>
-          </div>
-          <div class="loading-bar">
-            <div class="progress"></div>
-            <div class="progress-num">100%</div>
+      <div class="row first-row">
+        <div class="patch-info">
+          <ul class="patch-info-list">
+            <li><div class="patch-info-item">
+              <span>Patch-H</span>            
+              <span class="patch-H"><img class="checker" src="./images/checks/Patch_NOT.png" alt=""/></span>
+              </div>
+            </li>
+            <li><div class="patch-info-item">
+              <span>Patch-S</span>            
+              <span class="patch-S"><img class="checker" src="./images/checks/Patch_NOT.png" alt=""/></span>
+              </div>
+            </li>
+            <li><div class="patch-info-item">
+              <span>Patch-P</span>            
+              <span class="patch-P"><img class="checker" src="./images/checks/Patch_NOT.png" alt=""/></span>
+              </div>
+            </li>
+            <li><div class="patch-info-item">
+              <span>Patch-T</span>            
+              <span class="patch-T"><img class="checker" src="./images/checks/Patch_NOT.png" alt=""/></span>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="row">
+        <div class="left">
+          <div class="download-section">
+            <div class="download-info">Hledám dostupné aktualizace</div>
+            <div class="loading-bar">
+              <div class="progress"></div>
+              <div class="progress-num">100%</div>
+            </div>
           </div>
         </div>
-        <div class="download-info">Hledám dostupné aktualizace</div>
-      </div>
 
-      <div class="right">
-        <button class="play-btn" disabled type="button">HRÁT</button>
+        <div class="right">
+          <button class="play-btn" disabled type="submit"></button>
+        </div>
       </div>
     </div>
     <script type="text/javascript" src="renderMain.js"></script>

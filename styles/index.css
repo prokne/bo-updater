@@ -4,6 +4,16 @@ body {
   margin: 0;
   height: 100%;
   font-family: "Montserrat", sans-serif;
+  /* -webkit-app-region: drag; */
+}
+
+.title-bar{
+  position: absolute;
+  width: 100%;
+  height: 45px;
+  background-color: aliceblue;
+  z-index: -2;
+  -webkit-app-region: drag;
 }
 
 h1,
@@ -25,25 +35,19 @@ h2 {
   position: relative;
 }
 
-.background {
+ .background {
   position: absolute;
   left: 0;
   top: 0;
-  background-image: linear-gradient(
-      to bottom,
-      rgba(163, 163, 163, 0.3) 30%,
-      #65565185 60%,
-      #362620d6 75%,
-      #362620 90%
-    ),
+  background-image:
     url("../images/launcher.png");
   background-size: cover;
-  background-position: 50% 60%;
+  background-position: center;
   background-color: red;
   height: 100%;
   width: 100%;
   z-index: -1;
-}
+} 
 
 .content {
   height: 70%;
@@ -52,22 +56,68 @@ h2 {
 
 .controls {
   position: absolute;
-  right: 20px;
-  top: 20px;
+  right: 5px;
+  top: 5px;
   align-items: center;
+  -webkit-app-region: no-drag
 }
 
 .audio-btn {
   background: none;
   border: none;
-  font-size: 1.8rem;
   color: whitesmoke;
-  display: flex;
-  margin: auto;
-  padding: 15px;
+  width: 45%;
 }
 
+.audio-btn:hover {
+  cursor: pointer;
+}
+
+.bar-controls{
+  margin-left: 30px;
+  display: flex;
+  align-items: center;
+}
+
+.window-control-btn {
+  background: none;
+  display: block;
+  border: none;
+  color: whitesmoke;
+  background-repeat: no-repeat;
+  background-position: center;
+  width: 40px;
+  height: 40px;
+
+}
+
+.minimize{
+  background-image: url("../images/bar/Mini_UP.png");
+}
+
+.minimize:active:hover{
+  background-image: url("../images/bar//Mini_HOVER_Down.png");
+}
+
+.minimize:hover{
+  cursor: pointer;
+}
+
+.close{
+  background-image: url("../images/bar/Cross_UP.png");
+}
+
+.close:active:hover{
+  background-image: url("../images/bar/Cross_HOVER_Down.png");
+}
+
+.close:hover{
+  cursor: pointer;
+}
+
+
 .dark-night-control {
+  margin-top: 20px;
   color: whitesmoke;
 }
 
@@ -105,7 +155,7 @@ h2 {
 
 .patch-info {
   display: block;
-  padding-bottom: 10px;
+  padding-bottom: 15px;
 }
 
 .patch-info-list {
@@ -114,8 +164,17 @@ h2 {
 }
 .patch-info-list li {
   display: inline-block;
-  padding: 0px 20px;
+  padding: 0px 30px;
   color: aliceblue;
+}
+
+.patch-info-item{
+  display: flex;
+  align-items: center;
+}
+
+.checker{
+  margin-left: 5px;
 }
 
 .patch-info-list li:nth-child(1) {
@@ -131,15 +190,30 @@ h2 {
 
 .loading-section {
   display: flex;
+  flex-direction: column;
+  height: 30%;
+  margin: 0 30px;
+  justify-content: center;
+}
+
+.row {
+  display: flex;
   flex-direction: row;
   align-items: center;
-  height: 30%;
-  justify-content: space-around;
+  /* height: 30%;
+  margin: 0 30px; */
+}
+
+.first-row{
+  justify-content: flex-start;
+  margin-left: 50px;
 }
 
 .left {
   display: flex;
   flex-direction: column;
+  flex: 2 1;
+  margin-right: 30px;
 }
 
 .download-section {
@@ -154,7 +228,7 @@ h2 {
   width: 100%;
   border: 2px solid #1a1a2e;
   border-radius: 10px;
-  background-color: #bba293;
+  background-color: #362648;
 }
 
 .progress-num {
@@ -162,11 +236,11 @@ h2 {
   position: absolute;
   font-size: 0.8rem;
   margin: auto;
-  left: 30%;
+  left: 29%;
 }
 
 .progress {
-  background-color: #ff6b6b;
+  background-color: #7857e5;
   width: 100%;
   height: 100%;
   border-radius: 10px;
@@ -176,25 +250,28 @@ h2 {
   text-align: left;
   color: whitesmoke;
   font-size: 10px;
-  padding-top: 10px;
+  padding: 0 0 5px 10px;
 }
 
 .play-btn {
-  margin-left: 50px;
-  width: 150px;
+  width: 330px;
   height: 80px;
-  background-color: #e94560;
-  color: cornsilk;
   border: none;
-  border-radius: 20px;
-  font-size: 1.3rem;
-  font-weight: 700;
+  background-image: url("../images/btn/Button_UP.png");
+  background-size: auto;
+  background-position: center;
+  background-color: transparent;
 }
 
 .play-btn:disabled {
-  background-color: #d8b0b0;
+  background-image: url("../images/btn/Button_Lock.png");
 }
 
 .play-btn:hover:enabled {
-  background-color: crimson;
+  background-image: url("../images/btn/Button_HOVER.png");
+  cursor: pointer;
+}
+
+.play-btn:active:hover{
+  background-image: url("../images/btn/Button_DOWN.png");
 }

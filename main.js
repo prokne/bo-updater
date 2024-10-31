@@ -14,10 +14,12 @@ if (process.env.IS_DEV){
 
 const userDataPath = app.getPath("userData");
 
+console.log(userDataPath)
+
 autoUpdater.logger = require("electron-log")
 autoUpdater.logger.transports.file.level = "info"
 
-let GM_ON = true;
+let GM_ON = false;
 
 const URL = "https://bradavice-online.cz/patches/";
 
@@ -126,14 +128,18 @@ function readFile(fileName) {
 }
 
 //Writes JSON files
-function writeFile(fileName, data) {
-  fs.writeFile(fileName, data, (err) => {
-    if (err) {
-      console.log(err);
-    } else {
-      console.log("JSON data has been saved");
-    }
-  });
+function writeFile(fileName, data, sync=false) {
+  if (sync){
+    fs.writeFileSync(fileName, data);
+  } else {
+    fs.writeFile(fileName, data, (err) => {
+      if (err) {
+        console.log(err);
+      } else {
+        console.log("JSON data has been saved");
+      }
+    });
+  }
 }
 
 //Delete Cache
@@ -203,16 +209,16 @@ async function downloadPatches(downloadList) {
   win.webContents.send("playable", true);
 }
 
-function main() {
+async function main () {
   GM_ON = fs.existsSync(`${userDataPath}/.enhanced-options`)
   
   win.webContents.send("is-gm-on", GM_ON);
 
   if (!fs.existsSync(`${userDataPath}/patche.json`)) {
-    writeFile(`${userDataPath}/patche.json`, JSON.stringify(localDataObject));
+    writeFile(`${userDataPath}/patche.json`, JSON.stringify(localDataObject), true);
   }
 
-  isUpToDate().then((downloadList) => {
+  await isUpToDate().then(async (downloadList) => {
     console.log(downloadList.length);
     if (downloadList.length === 0) {
       win.webContents.send("info", "Vaše patche jsou aktuální");
@@ -220,7 +226,7 @@ function main() {
       isFinishedUpdating = true;
       win.webContents.send("playable", true);
     } else {
-      downloadPatches(downloadList);
+      await downloadPatches(downloadList);
     }
   });
 
@@ -238,7 +244,7 @@ function main() {
 
       //if checkbox is checked -> delete patch-U
       if (checked) {
-        fs.rmdir("../Data/patch-U.MPQ", { recursive: true }, (err) => {
+        fs.rm("../Data/patch-U.MPQ", { recursive: true }, (err) => {
           if (err) {
             console.log(err);
           } else {
@@ -266,7 +272,7 @@ function main() {
     });
   }
 
-  ipcMain.on("close-me", (event, args) => {
+  ipcMain.on("launch-wow", (event, args) => {
     const subprocess = spawn(
       "../Wow.exe",
       [],
@@ -282,6 +288,14 @@ function main() {
     subprocess.unref();
     app.quit();
   });
+
+  ipcMain.on("close-me", (event, args)=>{
+    app.quit();
+  })
+
+  ipcMain.on("minimize-me", (event, args)=>{
+    win.minimize();
+  })
 }
 
 function createWindow(width, height) {
@@ -289,24 +303,11 @@ function createWindow(width, height) {
     backgroundColor: "#16213e",
     width,
     height,
-    resizable: false,
-    autoHideMenuBar: true,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: path.join(__dirname + "/preload.js"),
-    },
-    icon: __dirname + "/icons/bo.ico",
-  });
-}
-
-function createUpdateWindow() {
-  return new BrowserWindow({
-    backgroundColor: "#16213e",
-    width: 300,
-    height: 400,
-    resizable: false,
-    autoHideMenuBar: true,
+    resizable: true,
+    frame: false,
+    maximizable: false,
+    //titleBarStyle: 'hidden',
+    //titleBarOverlay: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -332,8 +333,8 @@ autoUpdater.on('update-not-available', (info) => {
   win = createWindow(900,600);
   win.loadFile("index.html");
   //win.webContents.openDevTools();
-  win.webContents.on("ready-to-show", () => {
-    main();
+  win.webContents.on("ready-to-show", async () => {
+   await main();
   });
 })
 
@@ -341,6 +342,9 @@ autoUpdater.on('update-available', (info) => {
   win = createWindow(300,400);
   win.loadFile("updateWindow.html");
   //win.webContents.openDevTools();
+  ipcMain.on("close-me", (event, args)=>{
+    app.quit();
+  })
 })
 
 autoUpdater.on('download-progress', (progressObj) => {

@@ -13,8 +13,8 @@ const API = {
   isPlayable: (callback) => {
     ipcRenderer.on("playable", callback);
   },
-  closeApp: () => {
-    ipcRenderer.send("close-me");
+  launchWow: () => {
+    ipcRenderer.send("launch-wow");
   },
   handleAudioButton: (isMuted) => {
     ipcRenderer.send("mute", isMuted);
@@ -33,6 +33,12 @@ const API = {
   },
   testik: (callback) => {
     ipcRenderer.on("testik", callback);
+  },
+  closeApp: () => {
+    ipcRenderer.send("close-me");
+  },
+  minimizeApp: () => {
+    ipcRenderer.send("minimize-me");
   },
 };
 

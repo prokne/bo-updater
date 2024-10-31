@@ -11,6 +11,37 @@ body {
     flex-direction: column;
 }
 
+.bar-controls{
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+.window-control-btn {
+  background: none;
+  display: block;
+  border: none;
+  color: whitesmoke;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  width: 20px;
+  height: 20px;
+
+}
+
+.close{
+  background-image: url("../images/bar/Cross_UP.png");
+}
+
+.close:active:hover{
+  background-image: url("../images/bar/Cross_HOVER_Down.png");
+}
+
+.close:hover{
+  cursor: pointer;
+}
+
 .logo{
     width: 100%;
 }
