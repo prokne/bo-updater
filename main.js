@@ -1,4 +1,3 @@
-const { ifError } = require("assert");
 const { app, BrowserWindow, ipcMain } = require("electron");
 const fs = require("fs");
 const https = require("https");
@@ -13,8 +12,6 @@ if (process.env.IS_DEV){
 }
 
 const userDataPath = app.getPath("userData");
-
-console.log(userDataPath)
 
 autoUpdater.logger = require("electron-log")
 autoUpdater.logger.transports.file.level = "info"
@@ -155,7 +152,7 @@ function deleteCache() {
 
 //Compares local patche.json vs serverPatche.json and returns list of patches, which needs to be downloaded
 async function isUpToDate() {
-  const localPatcheData = await readFile(`${userDataPath}/patche.json`);
+  const localPatcheData = await readFile(`../patche.json`);
   let serverPatcheData = await getServerPatcheInfo();
 
   localDataObject = localPatcheData;
@@ -196,7 +193,7 @@ async function downloadPatches(downloadList) {
           serverPatcheInfoData[downloadList[i]];
         let dataToSave = JSON.stringify(localDataObject);
         console.log(localDataObject);
-        writeFile(`${userDataPath}/patche.json`, dataToSave);
+        writeFile(`../patche.json`, dataToSave);
       }
     );
   }
@@ -214,8 +211,8 @@ async function main () {
   
   win.webContents.send("is-gm-on", GM_ON);
 
-  if (!fs.existsSync(`${userDataPath}/patche.json`)) {
-    writeFile(`${userDataPath}/patche.json`, JSON.stringify(localDataObject), true);
+  if (!fs.existsSync(`../patche.json`)) {
+    writeFile(`../patche.json`, JSON.stringify(localDataObject), true);
   }
 
   await isUpToDate().then(async (downloadList) => {
@@ -232,14 +229,14 @@ async function main () {
 
   ipcMain.on("mute", (event, isMuted) => {
     localDataObject.options.muted = isMuted;
-    writeFile(`${userDataPath}/patche.json`, JSON.stringify(localDataObject));
+    writeFile(`../patche.json`, JSON.stringify(localDataObject));
   });
 
   //When user checks or unchecks the night checkbox
   if (GM_ON) {
     ipcMain.on("night-check", (event, checked) => {
       localDataObject.options.night = checked;
-      writeFile(`${userDataPath}/patche.json`, JSON.stringify(localDataObject));
+      writeFile(`../patche.json`, JSON.stringify(localDataObject));
       win.webContents.send("playable", false);
 
       //if checkbox is checked -> delete patch-U
@@ -288,14 +285,6 @@ async function main () {
     subprocess.unref();
     app.quit();
   });
-
-  ipcMain.on("close-me", (event, args)=>{
-    app.quit();
-  })
-
-  ipcMain.on("minimize-me", (event, args)=>{
-    win.minimize();
-  })
 }
 
 function createWindow(width, height) {
@@ -336,6 +325,14 @@ autoUpdater.on('update-not-available', (info) => {
   win.webContents.on("ready-to-show", async () => {
    await main();
   });
+
+  ipcMain.on("close-me", (event, args)=>{
+    app.exit(0);
+  })
+
+  ipcMain.on("minimize-me", (event, args)=>{
+    win.minimize();
+  })
 })
 
 autoUpdater.on('update-available', (info) => {

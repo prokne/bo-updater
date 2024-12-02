@@ -60,7 +60,7 @@ window.api.isMuted((event, isMuted) => {
 });
 
 button.addEventListener("click", () => {
-  window.api.launchWOw();
+  window.api.launchGame();
 });
 
 closeBtn.addEventListener("click", () =>{

@@ -13,7 +13,7 @@ const API = {
   isPlayable: (callback) => {
     ipcRenderer.on("playable", callback);
   },
-  launchWow: () => {
+  launchGame: () => {
     ipcRenderer.send("launch-wow");
   },
   handleAudioButton: (isMuted) => {
