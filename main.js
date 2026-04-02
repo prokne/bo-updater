@@ -2,11 +2,10 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const fs = require("fs");
 const https = require("https");
 const path = require("path");
-const { resolve } = require("path");
 const { spawn } = require("child_process");
 const rootPath = require("electron-root-path").rootPath;
 const { autoUpdater } = require("electron-updater")
-require('dotenv').config();
+const config  = require('./config');
 
 if (process.env.IS_DEV){
   autoUpdater.forceDevUpdateConfig = true;
@@ -151,23 +150,56 @@ function deleteCache() {
   });
 }
 
+
 //Delete Night patch
 async function deleteNightPatch() {
   return new Promise((resolve, reject) => {
-    fs.rm("../Data/patch-U.MPQ", { recursive: true }, (err) => {
-      if (err) {
-        console.log(err);
-        reject(err);
-      } else {
-        console.log("Deleted patch-U");
-        resolve();
-      }
-    });
+    if (!fs.existsSync("../Data/patch-U.MPQ")) {
+      console.log("No night patch to delete");
+      resolve();
+    } else {
+      fs.rm("../Data/patch-U.MPQ", { recursive: true }, (err) => {
+        if (err) {
+          console.log(err);
+          reject(err);
+        } else {
+          console.log("Deleted patch-U");
+          resolve();
+        }
+      });
+    }
   });
+}
+
+//downloads directly patch-U from cloudfront, for the future it would be better to make it a universal function and use it for downloading all patches with progress bar
+async function downloadFromCloudForm(destinationPath) {
+  const response = await fetch('https://bo-updater-worker.prokop-n.workers.dev', {
+    headers: {
+      'x-api-key': config.API_KEY,
+    },
+  });
+
+  console.log("Response from cloudflare", response);
+
+  if (!response.ok) {
+    console.log(response);
+    throw new Error(`Download failed: ${response.status}`);
+  }
+
+  const buffer = await response.arrayBuffer();
+  fs.writeFileSync(destinationPath, Buffer.from(buffer));
 }
 
 //Compares local patche.json vs serverPatche.json and returns list of patches, which needs to be downloaded
 async function isUpToDate() {
+
+  //delete night patch
+  if (!GM_ON){
+    console.log("GM is off, deleting night patch if exists");
+    await deleteNightPatch();
+  }
+
+
   const localPatcheData = await readFile(`../patche.json`);
   let serverPatcheData = await getServerPatcheInfo();
 
@@ -218,16 +250,12 @@ async function downloadPatches(downloadList) {
   //delete Cache
   deleteCache();
 
-  if (!GM_ON){
-    await deleteNightPatch();
-  }
-
   isFinishedUpdating = true;
   win.webContents.send("playable", true);
 }
 
 async function main () {
-  GM_ON = fs.existsSync(`${userDataPath}/.enhanced-options`)
+  GM_ON = fs.existsSync(`${userDataPath}/${config.ENHANCED_FILE}`);
   
   win.webContents.send("is-gm-on", GM_ON);
 
@@ -254,37 +282,25 @@ async function main () {
 
   //When user checks or unchecks the night checkbox
   if (GM_ON) {
-    ipcMain.on("night-check", (event, checked) => {
+    ipcMain.on("night-check", async (event, checked) => {
       localDataObject.options.night = checked;
       writeFile(`../patche.json`, JSON.stringify(localDataObject));
       win.webContents.send("playable", false);
 
       //if checkbox is checked -> delete patch-U
       if (checked) {
-        fs.rm("../Data/patch-U.MPQ", { recursive: true }, (err) => {
-          if (err) {
-            console.log(err);
-          } else {
-            console.log("Deleted patch-U");
-            if (isFinishedUpdating) {
-              win.webContents.send("playable", true);
-            }
-          }
-        });
+        await deleteNightPatch();
+        if (isFinishedUpdating) {
+          win.webContents.send("playable", true);
+        }
       }
       //else download patch-U
       else {
-        https.get(process.env.URL_CLOUDFLARE + "gm-only/patch-U.MPQ", (res) => {
-          const writeStream = fs.createWriteStream("../Data/patch-U.MPQ");
-          res.pipe(writeStream);
-          writeStream.on("finish", () => {
-            writeStream.close();
-            console.log("patch-U downloaded");
-            if (isFinishedUpdating) {
-              win.webContents.send("playable", true);
-            }
-          });
-        });
+        await downloadFromCloudForm("../Data/patch-U.MPQ");
+        console.log("patch-U downloaded");
+        if (isFinishedUpdating) {
+          win.webContents.send("playable", true);
+        }
       }
     });
   }

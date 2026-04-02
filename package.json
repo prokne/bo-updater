@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "env-cmd electron .",
-    "build": "env-cmd electron-builder --publish never",
+    "build": "env-cmd node scripts/build-config.js && env-cmd electron-builder --publish never",
     "release": "env-cmd electron-builder"
   },
   "repository": {
