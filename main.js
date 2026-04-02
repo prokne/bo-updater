@@ -150,6 +150,21 @@ function deleteCache() {
   });
 }
 
+//Delete Night patch
+async function deleteNightPatch() {
+  return new Promise((resolve, reject) => {
+    fs.rm("../Data/patch-U.MPQ", { recursive: true }, (err) => {
+      if (err) {
+        console.log(err);
+        reject(err);
+      } else {
+        console.log("Deleted patch-U");
+        resolve();
+      }
+    });
+  });
+}
+
 //Compares local patche.json vs serverPatche.json and returns list of patches, which needs to be downloaded
 async function isUpToDate() {
   const localPatcheData = await readFile(`../patche.json`);
@@ -201,6 +216,10 @@ async function downloadPatches(downloadList) {
 
   //delete Cache
   deleteCache();
+
+  if (!GM_ON){
+    await deleteNightPatch();
+  }
 
   isFinishedUpdating = true;
   win.webContents.send("playable", true);
