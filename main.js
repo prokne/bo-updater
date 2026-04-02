@@ -6,6 +6,7 @@ const { resolve } = require("path");
 const { spawn } = require("child_process");
 const rootPath = require("electron-root-path").rootPath;
 const { autoUpdater } = require("electron-updater")
+require('dotenv').config();
 
 if (process.env.IS_DEV){
   autoUpdater.forceDevUpdateConfig = true;
@@ -273,7 +274,7 @@ async function main () {
       }
       //else download patch-U
       else {
-        https.get(URL + "patch-U.MPQ", (res) => {
+        https.get(process.env.URL_CLOUDFLARE + "gm-only/patch-U.MPQ", (res) => {
           const writeStream = fs.createWriteStream("../Data/patch-U.MPQ");
           res.pipe(writeStream);
           writeStream.on("finish", () => {
