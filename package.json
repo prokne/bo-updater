@@ -1,6 +1,6 @@
 {
   "name": "bo-updater",
-  "version": "3.2.16",
+  "version": "3.3.00",
   "description": "Bradavice Online Launcher",
   "main": "main.js",
   "scripts": {
