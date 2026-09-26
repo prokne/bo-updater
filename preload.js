@@ -45,6 +45,15 @@ const API = {
   },
   modalResponse: (response) => {
     ipcRenderer.send("modal-response", response);
+  },
+  showPathPicker: (callback) => {
+    ipcRenderer.on("show-path-picker", callback);
+  },
+  pathPickerResponse: (chosenPath) => {
+    ipcRenderer.send("install-location-chosen", chosenPath);
+  },
+  browseLocation: () => {
+    return ipcRenderer.invoke('browse-install-location');
   }
 };
 

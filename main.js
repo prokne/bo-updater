@@ -7,7 +7,7 @@ const { spawn } = require("child_process");
 const rootPath = require("electron-root-path").rootPath;
 const { autoUpdater } = require("electron-updater")
 const yauzl = require('yauzl');
-const { getGameSize, ensureEnoughDiskSpace, filePartSize } = require('./src/utils/index.js');
+const { getGameSize, ensureEnoughDiskSpace, filePartSize, defaultGameInstallDir, rarPath } = require('./src/utils/index.js');
 
 const config  = require('./config');
 
@@ -17,8 +17,6 @@ if (process.env.IS_DEV){
 }
 
 const userDataPath = app.getPath("userData");
-let GAME_PATH = path.join(rootPath, "../Bradavice Online");
-const RAR_PATH = path.join(rootPath, "../game.zip");
 
 autoUpdater.logger = require("electron-log")
 autoUpdater.logger.transports.file.level = "info"
@@ -28,7 +26,7 @@ let activeReq = null;
 
 const URL = "https://bradavice-online.cz/patches/";
 const URL_CLOUDFLARE = "https://bo-updater-worker.prokop-n.workers.dev/";
-const GAME_URL = 'https://bo-updater-worker.prokop-n.workers.dev/bo-test.zip';
+const GAME_URL = 'https://bo-updater-worker.prokop-n.workers.dev/bradavice-online.zip';
 
 let localDataObject;
 
@@ -43,8 +41,9 @@ GM_ON
       options: {
         muted: false,
         night: true,
-        shouldDownloadGame: true,
+        gameIsDownloading: false,
         forceAskDownload: true,
+        gamePath: "",
       },
     })
   : (localDataObject = {
@@ -57,8 +56,9 @@ GM_ON
       options: {
         muted: false,
         night: true,
-        shouldDownloadGame: true,
+        gameIsDownloading: false,
         forceAskDownload: true,
+        gamePath: "",
       },
     });
 
@@ -71,14 +71,15 @@ let serverPatcheInfoData = {
 let isFinishedUpdating = false;
 
 function isGameInstalled() {
-  if (fs.existsSync("../Wow.exe")) { //manualni instalace
-    GAME_PATH = path.join(rootPath, "../");
+  if (localDataObject.options.gamePath && localDataObject.options.gamePath > 0){
+    if (fs.existsSync(path.join(localDataObject.options.gamePath, "Wow.exe")));
     win.webContents.send("check-patche", "client");
     return true;
-  } 
-  
-  if (fs.existsSync("../Bradavice Online/Wow.exe")) { //instalace z updateru
-    GAME_PATH = path.join(rootPath, "../Bradavice Online");
+  }
+
+  if (fs.existsSync("../Wow.exe")) { //manualni instalace
+    localDataObject.options.gamePath = path.join(rootPath, "../");
+    writeFile(path.join(rootPath, "patche.json"), JSON.stringify(localDataObject));
     win.webContents.send("check-patche", "client");
     return true;
   }
@@ -112,39 +113,70 @@ function getServerPatcheInfo() {
   });
 }
 
-//Downloads patches and sends progress to front-end
-function downloadFile(url, fileName) {
-  return new Promise((resolve, reject) => {
-    https.get(url, (res) => {
-      const path = `../Data/${fileName}`;
-      const filePath = fs.createWriteStream(path);
-      let len = 0;
-      res.on("data", function (chunk) {
-        filePath.write(chunk);
-        len += chunk.length;
+// shows the themed overlay, waits for the user to confirm a path
+function askInstallLocation() {
+  return new Promise((resolve) => {
+    win.webContents.send('show-path-picker', {
+      defaultPath: defaultGameInstallDir(),
+    });
 
-        // percentage downloaded is as follows
-        let percent = (len / res.headers["content-length"]) * 100;
-        win.webContents.send("download-progress", Math.floor(percent));
-      });
-      res.on("end", function () {
-        filePath.close();
-      });
-      filePath.on("close", function () {
-        // the file is done downloading
-        resolve(`Download completed - ${fileName}`);
-      });
-      res.on("error", (err) => {
-        reject(err);
-      });
+    ipcMain.once('install-location-chosen', (event, chosenPath) => {
+      localDataObject.options.forceAskDownload = false;
+      writeFile(path.join(rootPath, "patche.json"), JSON.stringify(localDataObject));
+      resolve(chosenPath);
     });
   });
 }
 
+// handles the "Zvolit jiné umístění" button — opens the native picker,
+// returns the result back to the renderer to update the displayed text
+ipcMain.handle('browse-install-location', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showOpenDialog(win, {
+    title: 'Zvol umístění pro instalaci hry',
+    defaultPath: 'C:\\Games',
+    properties: ['openDirectory', 'createDirectory'],
+    buttonLabel: 'Vybrat',
+  });
+
+  if (result.canceled || result.filePaths.length === 0) return null;
+  console.log(result, path.join(result.filePaths[0], 'Bradavice Online'))
+  return path.join(result.filePaths[0], 'Bradavice Online');
+});
+
+//Downloads patches and sends progress to front-end
+// function downloadFile(url, fileName) {
+//   return new Promise((resolve, reject) => {
+//     https.get(url, (res) => {
+//       const path = `../Data/${fileName}`;
+//       const filePath = fs.createWriteStream(path);
+//       let len = 0;
+//       res.on("data", function (chunk) {
+//         filePath.write(chunk);
+//         len += chunk.length;
+
+//         // percentage downloaded is as follows
+//         let percent = (len / res.headers["content-length"]) * 100;
+//         win.webContents.send("download-progress", Math.floor(percent));
+//       });
+//       res.on("end", function () {
+//         filePath.close();
+//       });
+//       filePath.on("close", function () {
+//         // the file is done downloading
+//         resolve(`Download completed - ${fileName}`);
+//       });
+//       res.on("error", (err) => {
+//         reject(err);
+//       });
+//     });
+//   });
+// }
+
 //Dowonload patch from cloudflare worket and show progress in front-end
 async function downloadPatchFromCloudFlare(url, filename) {
     return new Promise(async (resolve, reject) => {
-    const destPath = path.join(GAME_PATH, "Data", filename);
+    const destPath = path.join(localDataObject.options.gamePath, "Data", filename);
     const patchName = filename.replace(".MPQ", "");
     let patchSize;
     try {
@@ -261,7 +293,7 @@ function writeFile(fileName, data, sync=false) {
 
 //Delete Cache
 function deleteCache() {
-  fs.rmdir("../Cache", { recursive: true }, (err) => {
+  fs.rmdir(path.join(localDataObject.options.gamePath, "Cache"), { recursive: true }, (err) => {
     if (err) {
       console.log(err);
     } else {
@@ -472,12 +504,11 @@ function shouldDownloadGame() {
 
     ipcMain.once('modal-response', (event, response) => {
       if (response === "primary") {
-        localDataObject.options.shouldDownloadGame = true;
-        localDataObject.options.forceAskDownload = false;
+        localDataObject.options.gameIsDownloading = true;
         writeFile(path.join(rootPath, "patche.json"), JSON.stringify(localDataObject));
         resolve(true);
       } else {
-        localDataObject.options.shouldDownloadGame = false;
+        localDataObject.options.gameIsDownloading = false;
         localDataObject.options.forceAskDownload = false;
         writeFile(path.join(rootPath, "patche.json"), JSON.stringify(localDataObject));
         resolve(false);
@@ -508,10 +539,14 @@ async function isUpToDate() {
    if (!isGameInstalled()) {
     const shouldDownload =
       localDataObject.options.forceAskDownload === true
-        ? await shouldDownloadGame()
-        : localDataObject.options.shouldDownloadGame;
+        && await shouldDownloadGame()
 
-    if (shouldDownload) {
+    if (shouldDownload){
+      localDataObject.options.gamePath = await askInstallLocation();
+      writeFile(path.join(rootPath, "patche.json"), JSON.stringify(localDataObject));
+    }
+
+    if (localDataObject.options.gameIsDownloading) {
       try {
         await downloadAndExtractGame();
       } catch (err) {
@@ -597,11 +632,12 @@ async function downloadPatches(downloadList) {
 
 async function downloadAndExtractGame() {
   const gameSize = await getGameSize(GAME_URL);
+  const RAR_PATH = rarPath(localDataObject.options.gamePath);
   await ensureEnoughDiskSpace(RAR_PATH, gameSize);
   await downloadGameWithRetry(RAR_PATH);
-  await extractGameWithProgress(RAR_PATH, GAME_PATH);
+  await extractGameWithProgress(RAR_PATH, localDataObject.options.gamePath);
   fs.rmSync(RAR_PATH, { force: true });
-  localDataObject.options.shouldDownloadGame = false;
+  localDataObject.options.isGameDownloading = false;
   localDataObject.options.forceAskDownload = true;
   writeFile(path.join(rootPath, "patche.json"), JSON.stringify(localDataObject));
 }
@@ -648,7 +684,7 @@ async function main () {
       }
       //else download patch-U
       else {
-        await downloadNightPatch("../Data/patch-U.MPQ");
+        await downloadNightPatch(path.join(localDataObject.options.gamePath, "Data", "Wow.exe"));
         console.log("patch-U downloaded");
         if (isFinishedUpdating) {
           win.webContents.send("playable", true);
@@ -659,7 +695,7 @@ async function main () {
 
   ipcMain.on("launch-wow", (event, args) => {
     const subprocess = spawn(
-      path.join(GAME_PATH, "Wow.exe"),
+      path.join(localDataObject.options.gamePath, "Wow.exe"),
       [],
       { detached: true, stdio: "ignore" },
       (err, stdout, stderr) => {

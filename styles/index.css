@@ -392,3 +392,15 @@ h2 {
   border-color: #d8d3e6;
   color: #fff;
 }
+
+.path-display {
+  font-family: Montserrat, sans-serif;
+  font-size: 13px;
+  color: #f0d68a;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(184, 150, 63, 0.4);
+  border-radius: 3px;
+  padding: 10px 14px;
+  margin: 18px 0 4px;
+  word-break: break-all;
+}

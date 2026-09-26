@@ -15,12 +15,17 @@ const nightCheckbox = document.querySelector(".night-checbox");
 const darkNightControl = document.querySelector(".dark-night-control");
 const closeBtn = document.querySelector(".close");
 const minimizeBtn = document.querySelector(".minimize");
-const modal = document.querySelector(".modal-overlay");
-const modalMessage = document.querySelector(".modal-message");
-const modalTitle = document.querySelector(".modal-title");
+const modal = document.getElementById("modal-overlay");
+const modalMessage = document.getElementById("modal-message");
+const modalTitle = document.getElementById("modal-title");
 const modalCloseBtn = document.querySelector(".modal-close");
-const modalPrimaryBtn = document.querySelector(".modal-btn-primary");
-const modalSecondaryBtn = document.querySelector(".modal-btn-secondary");
+const modalPrimaryBtn = document.getElementById("modal-primary-btn");
+const modalSecondaryBtn = document.getElementById("modal-secondary-btn");
+const pathPickerModal = document.getElementById("path-picker-modal");
+const installLocationPath = document.getElementById("install-location-path");
+const installLocationConfirmBtn = document.getElementById("install-location-confirm");
+const installLocationBrowseBtn = document.getElementById("install-location-browse");
+const pathPickerCloseBtn = document.getElementById("path-picker-close");
 
 window.api.isGmOn((event, GM_ON) => {
   if (!GM_ON) {
@@ -134,3 +139,33 @@ modalSecondaryBtn.addEventListener("click", () => {
   modal.hidden = true;
   window.api.modalResponse("secondary");
 })
+
+
+
+let currentSuggestedPath = null;
+
+window.api.showPathPicker((event, options) => {
+  currentSuggestedPath = options.defaultPath;
+  installLocationPath.textContent = options.defaultPath;
+  pathPickerModal.hidden = false;
+});
+
+installLocationBrowseBtn.addEventListener('click', async () => {
+  const picked = await window.api.browseLocation();
+  console.log ("picked", picked);
+  if (picked) {
+    currentSuggestedPath = picked;
+    installLocationPath.textContent = picked;
+  }
+});
+
+installLocationConfirmBtn.addEventListener('click', () => {
+  if (currentSuggestedPath) {
+  pathPickerModal.hidden = true;
+  window.api.pathPickerResponse(currentSuggestedPath);
+  }
+});
+
+pathPickerCloseBtn.addEventListener('click', () => {
+  pathPickerModal.hidden = true;
+});

@@ -6,6 +6,14 @@ const https = require("https");
 const config  = require('../../config');
 
 
+function defaultGameInstallDir() {
+  return path.join('C:\\Games', 'Bradavice Online');
+}
+
+function rarPath(gamePath){
+  return path.join(gamePath, "../bradavice-online.zip")
+}
+
 function filePartSize(p) {
   try { return fs.statSync(p).size; } catch { return 0; }
 }
@@ -54,5 +62,7 @@ module.exports = {
   filePartSize,
   getFreeDiskSpace,
   getGameSize,
-  ensureEnoughDiskSpace
+  ensureEnoughDiskSpace,
+  defaultGameInstallDir,
+  rarPath
 };

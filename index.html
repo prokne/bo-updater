@@ -108,19 +108,37 @@
         </div>
       </div>
     </div>
-    <div class="modal-overlay" hidden>
+    <div class="modal-overlay" id="modal-overlay" hidden>
       <div class="modal-card">
         <button class="modal-close"">&times;</button>
-        <h2 class="modal-title">Title</h2>
-        <p class="modal-message">
+        <h2 class="modal-title" id="modal-title">Title</h2>
+        <p class="modal-message" id="modal-message">
           Message
         </p>
         <div class="modal-actions">
-          <button class="modal-btn modal-btn-primary" hidden>
+          <button class="modal-btn modal-btn-primary" id="modal-primary-btn" hidden>
             Primary Action
           </button>
-          <button class="modal-btn modal-btn-secondary" hidden>
+          <button class="modal-btn modal-btn-secondary" id="modal-secondary-btn" hidden>
             Secondary Action
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-overlay" id="path-picker-modal" hidden>
+      <div class="modal-card">
+        <button class="modal-close" id="path-picker-close">&times;</button>
+        <h2 class="modal-title">Výběr umístění pro instalaci hry</h2>
+        <p class="modal-message">
+          Vyberte umístění, kam chcete hru nainstalovat
+        </p>
+        <div class="path-display" id="install-location-path">C:\Games\Bradavice Online</div>
+        <div class="modal-actions">
+          <button class="modal-btn modal-btn-secondary" id="install-location-browse">
+            Zvolit jiné umístění
+          </button>
+          <button class="modal-btn modal-btn-primary" id="install-location-confirm">
+            Pokračovat
           </button>
         </div>
       </div>
