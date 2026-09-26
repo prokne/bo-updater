@@ -8,3 +8,4 @@ build/
 out/
 .env
 config.js
+patche.json
