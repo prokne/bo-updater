@@ -40,6 +40,12 @@ const API = {
   minimizeApp: () => {
     ipcRenderer.send("minimize-me");
   },
+  showModal: (callback) => {
+    ipcRenderer.on("show-modal", callback);
+  },
+  modalResponse: (response) => {
+    ipcRenderer.send("modal-response", response);
+  }
 };
 
 contextBridge.exposeInMainWorld("api", API);

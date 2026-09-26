@@ -1,24 +1,34 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const fs = require("fs");
+const fsp = require("fs").promises;
 const https = require("https");
 const path = require("path");
 const { spawn } = require("child_process");
 const rootPath = require("electron-root-path").rootPath;
 const { autoUpdater } = require("electron-updater")
+const yauzl = require('yauzl');
+const { getGameSize, ensureEnoughDiskSpace, filePartSize } = require('./src/utils/index.js');
+
 const config  = require('./config');
+
 
 if (process.env.IS_DEV){
   autoUpdater.forceDevUpdateConfig = true;
 }
 
 const userDataPath = app.getPath("userData");
+let GAME_PATH = path.join(rootPath, "../Bradavice Online");
+const RAR_PATH = path.join(rootPath, "../game.zip");
 
 autoUpdater.logger = require("electron-log")
 autoUpdater.logger.transports.file.level = "info"
 
 let GM_ON = false;
+let activeReq = null;
 
 const URL = "https://bradavice-online.cz/patches/";
+const URL_CLOUDFLARE = "https://bo-updater-worker.prokop-n.workers.dev/";
+const GAME_URL = 'https://bo-updater-worker.prokop-n.workers.dev/bo-test.zip';
 
 let localDataObject;
 
@@ -33,6 +43,8 @@ GM_ON
       options: {
         muted: false,
         night: true,
+        shouldDownloadGame: true,
+        forceAskDownload: true,
       },
     })
   : (localDataObject = {
@@ -44,6 +56,9 @@ GM_ON
       },
       options: {
         muted: false,
+        night: true,
+        shouldDownloadGame: true,
+        forceAskDownload: true,
       },
     });
 
@@ -54,6 +69,22 @@ let serverPatcheInfoData = {
   "patch-T": 0,
 };
 let isFinishedUpdating = false;
+
+function isGameInstalled() {
+  if (fs.existsSync("../Wow.exe")) { //manualni instalace
+    GAME_PATH = path.join(rootPath, "../");
+    win.webContents.send("check-patche", "client");
+    return true;
+  } 
+  
+  if (fs.existsSync("../Bradavice Online/Wow.exe")) { //instalace z updateru
+    GAME_PATH = path.join(rootPath, "../Bradavice Online");
+    win.webContents.send("check-patche", "client");
+    return true;
+  }
+
+  return false;
+}
 
 //Gets serverPatche.json from server to find out whether there are any new updates
 function getServerPatcheInfo() {
@@ -106,6 +137,95 @@ function downloadFile(url, fileName) {
       res.on("error", (err) => {
         reject(err);
       });
+    });
+  });
+}
+
+//Dowonload patch from cloudflare worket and show progress in front-end
+async function downloadPatchFromCloudFlare(url, filename) {
+    return new Promise(async (resolve, reject) => {
+    const destPath = path.join(GAME_PATH, "Data", filename);
+    const patchName = filename.replace(".MPQ", "");
+    let patchSize;
+    try {
+      patchSize = await getGameSize(url); // HEAD request, see earlier message
+    } catch (err) {
+      return reject(err);
+    }
+
+    let start = filePartSize(destPath);
+
+    if ( start >= patchSize) {
+      if (localDataObject.patches[patchName] !== serverPatcheInfoData[patchName]){ // file is fully downloaded but local patche.json is outdated, so we need to redownload it
+        fs.rmSync(destPath, { force: true });
+        start = filePartSize(destPath); // will be 0 now, since the file no longer exists
+      } else { // already fully downloaded — nothing to do
+        win.webContents.send('download-progress', 100);
+        return resolve();
+      }
+    }
+
+    const headers = { 'x-api-key': config.API_KEY };
+    if (start > 0) headers.Range = `bytes=${start}-`;
+
+    activeReq = https.get(url, { headers }, (res) => {
+      if (start > 0 && res.statusCode === 200) {
+        // server ignored our Range — start over
+        res.resume();
+        fs.rmSync(destPath, { force: true });
+        return reject(new Error('RANGE_IGNORED'));
+      }
+      if (res.statusCode !== 200 && res.statusCode !== 206) {
+        res.resume();
+        return reject(new Error(`Download failed: ${res.statusCode}`));
+      }
+
+      const total = start + Number(res.headers['content-length']);
+      let len = start;
+      let lastEmit = 0;
+
+      const out = fs.createWriteStream(destPath, { flags: 'a' });
+
+      // --- stall detection ---
+      let stallTimer;
+      const STALL_MS = 15000; // no data for 15s = treat as dead
+
+      function resetStallTimer() {
+        clearTimeout(stallTimer);
+        stallTimer = setTimeout(() => {
+          activeReq.destroy(new Error('STALLED'));
+        }, STALL_MS);
+      }
+      resetStallTimer();
+      // --- end stall detection ---
+
+      res.on('data', (chunk) => {
+        resetStallTimer();
+        len += chunk.length;
+        const now = Date.now();
+        if (now - lastEmit > 1000) {
+          lastEmit = now;
+          let percent = (len / total) * 100;
+          win.webContents.send('download-progress', Math.floor(percent));
+        }
+      });
+
+      res.pipe(out);
+
+      res.on('error', (err) => { out.destroy(); reject(err); });
+      out.on('error', reject);
+      out.on('finish', () => {
+        clearTimeout(stallTimer);
+        activeReq = null;
+        if (filePartSize(destPath) < total) return reject(new Error('CONNECTION_LOST'));
+        win.webContents.send('download-progress', 100);
+        resolve();
+      });
+    });
+
+    activeReq.on('error', (err) => {
+      activeReq = null;
+      reject(err);
     });
   });
 }
@@ -171,8 +291,8 @@ async function deleteNightPatch() {
   });
 }
 
-//downloads directly patch-U from cloudfront, for the future it would be better to make it a universal function and use it for downloading all patches with progress bar
-async function downloadFromCloudForm(destinationPath) {
+//downloads directly patch-U from cloudfront
+async function downloadNightPatch(destinationPath) {
   const response = await fetch('https://bo-updater-worker.prokop-n.workers.dev', {
     headers: {
       'x-api-key': config.API_KEY,
@@ -190,25 +310,243 @@ async function downloadFromCloudForm(destinationPath) {
   fs.writeFileSync(destinationPath, Buffer.from(buffer));
 }
 
+
+// Downloads game with resume support. Call again after a pause/failure
+// and it picks up where it left off.
+function downloadGame(destPath) {
+  return new Promise(async (resolve, reject) => {
+    win.webContents.send("info", `Stahuji hru`);
+    const start = filePartSize(destPath);
+
+    let gameSize;
+    try {
+      gameSize = await getGameSize(GAME_URL);
+    } catch (err) {
+      return reject(err);
+    }
+
+    if (start >= gameSize) {
+      // already fully downloaded — nothing to do
+      win.webContents.send('download-progress', 100);
+      return resolve();
+    }
+
+    const headers = { 'x-api-key': config.API_KEY };
+    if (start > 0) headers.Range = `bytes=${start}-`;
+
+    activeReq = https.get(GAME_URL, { headers }, (res) => {
+      if (start > 0 && res.statusCode === 200) {
+        // server ignored our Range — start over
+        res.resume();
+        fs.rmSync(destPath, { force: true });
+        return reject(new Error('RANGE_IGNORED'));
+      }
+      if (res.statusCode !== 200 && res.statusCode !== 206) {
+        res.resume();
+        return reject(new Error(`Download failed: ${res.statusCode}`));
+      }
+
+      const total = start + Number(res.headers['content-length']);
+      let len = start;
+      let lastEmit = 0;
+
+      const out = fs.createWriteStream(destPath, { flags: 'a' });
+
+      // --- stall detection ---
+      let stallTimer;
+      const STALL_MS = 15000; // no data for 15s = treat as dead
+
+      function resetStallTimer() {
+        clearTimeout(stallTimer);
+        stallTimer = setTimeout(() => {
+          activeReq.destroy(new Error('STALLED'));
+        }, STALL_MS);
+      }
+      resetStallTimer();
+      // --- end stall detection ---
+
+      res.on('data', (chunk) => {
+        resetStallTimer();
+        len += chunk.length;
+        const now = Date.now();
+        if (now - lastEmit > 1000) {
+          lastEmit = now;
+          let percent = (len / total) * 100;
+          win.webContents.send('download-progress', Math.floor(percent));
+        }
+      });
+
+      res.pipe(out);
+
+      res.on('error', (err) => { out.destroy(); reject(err); });
+      out.on('error', reject);
+      out.on('finish', () => {
+        clearTimeout(stallTimer);
+        activeReq = null;
+        if (filePartSize(destPath) < total) return reject(new Error('CONNECTION_LOST'));
+        win.webContents.send('download-progress', 100);
+        resolve();
+      });
+    });
+
+    activeReq.on('error', (err) => {
+      activeReq = null;
+      reject(err);
+    });
+  });
+}
+
+async function downloadGameWithRetry(destPath) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await downloadGame(destPath);
+      return;
+    } catch (err) {
+      console.log(err)
+      if (err.message === 'PAUSED') throw err;       // user action, don't retry
+      if (attempt >= 10){
+        win.webContents.send("info", `Hru se nepodařilo stáhnout, zkus to později`);
+        throw err;
+      }
+      const wait = Math.min(30000, 1000 * 2 ** attempt);
+      win.webContents.send("info", `Spojení přerušeno, zkouším znovu...(pokus ${attempt + 1}/10)`);
+      await new Promise((r) => setTimeout(r, wait)); //wait without continuing in the loop
+    }
+  }
+}
+
+function extractGameWithProgress(zipPath, destDir) {
+  return new Promise((resolve, reject) => {
+    win.webContents.send("info", `Rozbaluji hru`);
+    yauzl.open(zipPath, { lazyEntries: true }, (err, zipfile) => {
+      if (err) return reject(err);
+
+      let done = 0;
+      const total = zipfile.entryCount;
+
+      zipfile.readEntry();
+      zipfile.on('entry', (entry) => {
+        const outPath = path.join(destDir, entry.fileName);
+
+        if (/\/$/.test(entry.fileName)) {
+          fsp.mkdir(outPath, { recursive: true }).then(() => {
+            done++;
+            win.webContents.send('download-progress', Math.floor((done / total) * 100));
+            zipfile.readEntry();
+          });
+          return;
+        }
+
+        zipfile.openReadStream(entry, (err, readStream) => {
+          if (err) return reject(err);
+          fsp.mkdir(path.dirname(outPath), { recursive: true }).then(() => {
+            const writeStream = fs.createWriteStream(outPath);
+            readStream.pipe(writeStream);
+            writeStream.on('finish', () => {
+              done++;
+              win.webContents.send('download-progress', Math.floor((done / total) * 100));
+              zipfile.readEntry();
+            });
+            writeStream.on('error', reject);
+          });
+        });
+      });
+
+      zipfile.on('end', () => {
+        win.webContents.send("check-patche", "client");
+        resolve();
+      });
+      zipfile.on('error', reject);
+    });
+  });
+}
+
+function shouldDownloadGame() {
+  return new Promise((resolve, reject) => {
+    win.webContents.send("show-modal", {
+      title: "Herní klient nenalezen",
+      message: "Chcete hru stáhnout a nainstalovat?",
+      primaryButton: "Ano",
+      secondaryButton: "Ne"
+    });
+
+    ipcMain.once('modal-response', (event, response) => {
+      if (response === "primary") {
+        localDataObject.options.shouldDownloadGame = true;
+        localDataObject.options.forceAskDownload = false;
+        writeFile(path.join(rootPath, "patche.json"), JSON.stringify(localDataObject));
+        resolve(true);
+      } else {
+        localDataObject.options.shouldDownloadGame = false;
+        localDataObject.options.forceAskDownload = false;
+        writeFile(path.join(rootPath, "patche.json"), JSON.stringify(localDataObject));
+        resolve(false);
+      }
+  });
+})}
+
 //Compares local patche.json vs serverPatche.json and returns list of patches, which needs to be downloaded
 async function isUpToDate() {
-
-  //delete night patch
-  if (!GM_ON){
-    console.log("GM is off, deleting night patch if exists");
-    await deleteNightPatch();
-  }
-
-
-  const localPatcheData = await readFile(`../patche.json`);
+  
+  const localPatcheData = await readFile(path.join(rootPath, "patche.json"));
   let serverPatcheData = await getServerPatcheInfo();
 
   localDataObject = localPatcheData;
   serverPatcheInfoData = serverPatcheData;
 
+  if (localDataObject.options.forceAskDownload === undefined) {
+    localDataObject.options.forceAskDownload = true;
+    writeFile(path.join(rootPath, "patche.json"), JSON.stringify(localDataObject));
+  }
+
   win.webContents.send("is-muted", localPatcheData.options.muted);
   if (GM_ON) {
     win.webContents.send("is-night", localPatcheData.options.night);
+  }
+
+  // //Download and extract game if it is not installed yet
+   if (!isGameInstalled()) {
+    const shouldDownload =
+      localDataObject.options.forceAskDownload === true
+        ? await shouldDownloadGame()
+        : localDataObject.options.shouldDownloadGame;
+
+    if (shouldDownload) {
+      try {
+        await downloadAndExtractGame();
+      } catch (err) {
+        if (err.message.startsWith('Nedostatek místa na disku')) {
+          await new Promise((resolve) => {
+            win.webContents.send("show-modal", {
+              title: "Nedostatek místa na disku",
+              message: err.message,
+              primaryButton: "OK",
+            });
+
+            ipcMain.once('modal-response', (event, response) => {
+              resolve();
+            });
+          });
+          
+          // await dialog.showMessageBox(win, {
+          //   type: 'error',
+          //   title: 'Nedostatek místa na disku',
+          //   message: err.message,
+          //   buttons: ['OK'],
+          // });
+
+          app.quit();
+          return [];
+        }
+        throw err; // some other unexpected error, let it surface normally
+      }
+    }
+  }
+
+  //delete night patch
+  if (!GM_ON){
+    console.log("GM is off, deleting night patch if exists");
+    await deleteNightPatch();
   }
 
   const list = [];
@@ -233,17 +571,20 @@ async function downloadPatches(downloadList) {
     let filename = downloadList[i] + ".MPQ";
     win.webContents.send("info", "Stahuji " + downloadList[i]);
     console.log("Stahuji " + downloadList[i]);
-    await downloadFile(URL + `${filename}`, downloadList[i] + ".MPQ").then(
-      () => {
-        console.log("File downloaded!");
-        win.webContents.send("check-patche", downloadList[i]);
-        localDataObject.patches[downloadList[i]] =
-          serverPatcheInfoData[downloadList[i]];
-        let dataToSave = JSON.stringify(localDataObject);
-        console.log(localDataObject);
-        writeFile(`../patche.json`, dataToSave);
-      }
-    );
+    //await downloadFile(URL + `${filename}`, downloadList[i] + ".MPQ").then(
+    try {
+      await downloadPatchFromCloudFlare(URL_CLOUDFLARE + `${filename}`, filename);
+    } catch (err) {
+      console.log(err);
+      throw err;
+    }
+    console.log("File downloaded!");
+    win.webContents.send("check-patche", downloadList[i]);
+    localDataObject.patches[downloadList[i]] =
+    serverPatcheInfoData[downloadList[i]];
+    let dataToSave = JSON.stringify(localDataObject);
+    console.log(localDataObject);
+    writeFile(path.join(rootPath, "patche.json"), dataToSave);
   }
   win.webContents.send("info", "Vaše patche jsou aktuální");
 
@@ -254,13 +595,24 @@ async function downloadPatches(downloadList) {
   win.webContents.send("playable", true);
 }
 
+async function downloadAndExtractGame() {
+  const gameSize = await getGameSize(GAME_URL);
+  await ensureEnoughDiskSpace(RAR_PATH, gameSize);
+  await downloadGameWithRetry(RAR_PATH);
+  await extractGameWithProgress(RAR_PATH, GAME_PATH);
+  fs.rmSync(RAR_PATH, { force: true });
+  localDataObject.options.shouldDownloadGame = false;
+  localDataObject.options.forceAskDownload = true;
+  writeFile(path.join(rootPath, "patche.json"), JSON.stringify(localDataObject));
+}
+
 async function main () {
   GM_ON = fs.existsSync(`${userDataPath}/${config.ENHANCED_FILE}`);
   
   win.webContents.send("is-gm-on", GM_ON);
 
-  if (!fs.existsSync(`../patche.json`)) {
-    writeFile(`../patche.json`, JSON.stringify(localDataObject), true);
+  if (!fs.existsSync(path.join(rootPath, "patche.json"))) {
+    writeFile(path.join(rootPath, "patche.json"), JSON.stringify(localDataObject), true);
   }
 
   await isUpToDate().then(async (downloadList) => {
@@ -277,14 +629,14 @@ async function main () {
 
   ipcMain.on("mute", (event, isMuted) => {
     localDataObject.options.muted = isMuted;
-    writeFile(`../patche.json`, JSON.stringify(localDataObject));
+    writeFile(path.join(rootPath, "patche.json"), JSON.stringify(localDataObject));
   });
 
   //When user checks or unchecks the night checkbox
   if (GM_ON) {
     ipcMain.on("night-check", async (event, checked) => {
       localDataObject.options.night = checked;
-      writeFile(`../patche.json`, JSON.stringify(localDataObject));
+      writeFile(path.join(rootPath, "patche.json"), JSON.stringify(localDataObject));
       win.webContents.send("playable", false);
 
       //if checkbox is checked -> delete patch-U
@@ -296,7 +648,7 @@ async function main () {
       }
       //else download patch-U
       else {
-        await downloadFromCloudForm("../Data/patch-U.MPQ");
+        await downloadNightPatch("../Data/patch-U.MPQ");
         console.log("patch-U downloaded");
         if (isFinishedUpdating) {
           win.webContents.send("playable", true);
@@ -307,7 +659,7 @@ async function main () {
 
   ipcMain.on("launch-wow", (event, args) => {
     const subprocess = spawn(
-      "../Wow.exe",
+      path.join(GAME_PATH, "Wow.exe"),
       [],
       { detached: true, stdio: "ignore" },
       (err, stdout, stderr) => {
@@ -328,7 +680,7 @@ function createWindow(width, height) {
     backgroundColor: "#16213e",
     width,
     height,
-    resizable: true,
+    resizable: false,
     frame: false,
     maximizable: false,
     //titleBarStyle: 'hidden',

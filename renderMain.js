@@ -15,6 +15,12 @@ const nightCheckbox = document.querySelector(".night-checbox");
 const darkNightControl = document.querySelector(".dark-night-control");
 const closeBtn = document.querySelector(".close");
 const minimizeBtn = document.querySelector(".minimize");
+const modal = document.querySelector(".modal-overlay");
+const modalMessage = document.querySelector(".modal-message");
+const modalTitle = document.querySelector(".modal-title");
+const modalCloseBtn = document.querySelector(".modal-close");
+const modalPrimaryBtn = document.querySelector(".modal-btn-primary");
+const modalSecondaryBtn = document.querySelector(".modal-btn-secondary");
 
 window.api.isGmOn((event, GM_ON) => {
   if (!GM_ON) {
@@ -98,4 +104,33 @@ window.api.isPlayable((event, playable) => {
 
 window.api.testik((event,string)=>{
   console.log(string)
+})
+
+window.api.showModal((event, options) => {
+  modalTitle.textContent = options.title;
+  modalMessage.textContent = options.message;
+  modal.hidden = false;
+  if (options.primaryButton) {
+    modalPrimaryBtn.textContent = options.primaryButton;
+    modalPrimaryBtn.hidden = false;
+  }
+  if (options.secondaryButton) {
+    modalSecondaryBtn.textContent = options.secondaryButton;
+    modalSecondaryBtn.hidden = false;
+  }
+});
+
+modalCloseBtn.addEventListener("click", () => {
+  modal.hidden = true;
+  window.api.modalResponse("secondary");
+});
+
+modalPrimaryBtn.addEventListener("click", () => {
+  modal.hidden = true;
+  window.api.modalResponse("primary");
+})
+
+modalSecondaryBtn.addEventListener("click", () => {
+  modal.hidden = true;
+  window.api.modalResponse("secondary");
 })
