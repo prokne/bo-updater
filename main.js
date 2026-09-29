@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, powerSaveBlocker  } = require("electron");
 const fs = require("fs");
 const fsp = require("fs").promises;
 const https = require("https");
@@ -8,7 +8,7 @@ const rootPath = require("electron-root-path").rootPath;
 const { autoUpdater } = require("electron-updater")
 const yauzl = require('yauzl');
 const { getGameSize, ensureEnoughDiskSpace, filePartSize, defaultGameInstallDir, rarPath } = require('./src/utils/index.js');
-const {readFile, scheduleSave} = require("./src/PatchData/index.js")
+const {readFile, scheduleSave, writeFile} = require("./src/launcher-data/index.js")
 
 const config  = require('./config');
 
@@ -27,7 +27,7 @@ let activeReq = null;
 
 const URL = "https://bradavice-online.cz/patches/";
 const URL_CLOUDFLARE = "https://bo-updater-worker.prokop-n.workers.dev/";
-const GAME_URL = 'https://bo-updater-worker.prokop-n.workers.dev/bo-test.zip';
+const GAME_URL = 'https://bo-updater-worker.prokop-n.workers.dev/bradavice-online.zip';
 const LAUNCHER_PATH = app.isPackaged ? path.dirname(app.getPath("exe")): rootPath;
 
 let localDataObject;
@@ -200,7 +200,7 @@ async function downloadPatchFromCloudFlare(url, filename) {
     const headers = { 'x-api-key': config.API_KEY };
     if (start > 0) headers.Range = `bytes=${start}-`;
 
-    activeReq = https.get(url, { headers }, (res) => {
+    activeReq = https.get(url, { headers, agent: false }, (res) => {
       if (start > 0 && res.statusCode === 200) {
         // server ignored our Range — start over
         res.resume();
@@ -338,7 +338,7 @@ function downloadGame(destPath) {
     const headers = { 'x-api-key': config.API_KEY };
     if (start > 0) headers.Range = `bytes=${start}-`;
 
-    activeReq = https.get(GAME_URL, { headers }, (res) => {
+    activeReq = https.get(GAME_URL, { headers, agent: false}, (res) => {
       if (start > 0 && res.statusCode === 200) {
         // server ignored our Range — start over
         res.resume();
@@ -363,7 +363,9 @@ function downloadGame(destPath) {
       function resetStallTimer() {
         clearTimeout(stallTimer);
         stallTimer = setTimeout(() => {
+          if (activeReq){
           activeReq.destroy(new Error('STALLED'));
+          }
         }, STALL_MS);
       }
       resetStallTimer();
@@ -401,13 +403,18 @@ function downloadGame(destPath) {
 }
 
 async function downloadGameWithRetry(destPath) {
-  for (let attempt = 0; ; attempt++) {
+  let attempt = 0;
+
+  while (true){
+    const sizeBefore = filePartSize(destPath);
+
     try {
       await downloadGame(destPath);
       return;
     } catch (err) {
       console.log(err)
       if (err.message === 'PAUSED') throw err;       // user action, don't retry
+      if (filePartSize(destPath) > sizeBefore) attempt = 0;
       if (attempt >= 10){
         win.webContents.send("info", `Hru se nepodařilo stáhnout, zkus to později`);
         throw err;
@@ -415,6 +422,8 @@ async function downloadGameWithRetry(destPath) {
       const wait = Math.min(30000, 1000 * 2 ** attempt);
       win.webContents.send("info", `Spojení přerušeno, zkouším znovu...(pokus ${attempt + 1}/10)`);
       await new Promise((r) => setTimeout(r, wait)); //wait without continuing in the loop
+
+      attempt++;
     }
   }
 }
@@ -599,15 +608,20 @@ async function downloadPatches(downloadList) {
 }
 
 async function downloadAndExtractGame() {
-  const gameSize = await getGameSize(GAME_URL);
-  const RAR_PATH = rarPath(localDataObject.options.gamePath);
-  //await ensureEnoughDiskSpace(RAR_PATH, gameSize);
-  //await downloadGameWithRetry(RAR_PATH);
-  await extractGameWithProgress(RAR_PATH, localDataObject.options.gamePath);
-  //fs.rmSync(RAR_PATH, { force: true });
-  localDataObject.options.gameIsDownloading = false;
-  localDataObject.options.forceAskDownload = true;
-  scheduleSave(path.join(LAUNCHER_PATH, "patche.json"), localDataObject);
+  const powerSaveBlockerId = powerSaveBlocker.start("prevent-display-sleep");
+  try {
+    const gameSize = await getGameSize(GAME_URL);
+    const RAR_PATH = rarPath(localDataObject.options.gamePath);
+    //await ensureEnoughDiskSpace(RAR_PATH, gameSize);
+    await downloadGameWithRetry(RAR_PATH);
+    await extractGameWithProgress(RAR_PATH, localDataObject.options.gamePath);
+    fs.rmSync(RAR_PATH, { force: true });
+    localDataObject.options.gameIsDownloading = false;
+    localDataObject.options.forceAskDownload = true;
+    scheduleSave(path.join(LAUNCHER_PATH, "patche.json"), localDataObject);
+  } finally {
+    powerSaveBlocker.stop(powerSaveBlockerId);
+  }
 }
 
 async function main () {
@@ -616,7 +630,7 @@ async function main () {
   win.webContents.send("is-gm-on", GM_ON);
 
   if (!fs.existsSync(path.join(LAUNCHER_PATH, "patche.json"))) {
-    scheduleSave(path.join(LAUNCHER_PATH, "patche.json"), localDataObject, true);
+    writeFile(path.join(LAUNCHER_PATH, "patche.json"), JSON.stringify(localDataObject), true);
   }
 
   await isUpToDate().then(async (downloadList) => {

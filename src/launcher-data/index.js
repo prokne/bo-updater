@@ -44,4 +44,5 @@ function scheduleSave(path, localDataObject, sync=false) {
 module.exports = {
   readFile,
   scheduleSave,
+  writeFile
 };
