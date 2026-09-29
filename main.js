@@ -45,7 +45,7 @@ GM_ON
         night: true,
         gameIsDownloading: false,
         forceAskDownload: true,
-        gamePath: "",
+        gamePath: path.join(LAUNCHER_PATH, "../"),
       },
     })
   : (localDataObject = {
@@ -60,7 +60,7 @@ GM_ON
         night: true,
         gameIsDownloading: false,
         forceAskDownload: true,
-        gamePath: "",
+        gamePath: path.join(LAUNCHER_PATH, "../"),
       },
     });
 
@@ -81,7 +81,7 @@ function isGameInstalled() {
 
   if (fs.existsSync("../Wow.exe")) { //manualni instalace
     localDataObject.options.gamePath = path.join(LAUNCHER_PATH, "../");
-    scheduleSave(path.join(LAUNCHER_PATH, "patche.json"), localDataObject);
+    scheduleSave(path.join(userDataPath, "patche.json"), localDataObject);
     win.webContents.send("check-patche", "client");
     return true;
   }
@@ -101,7 +101,6 @@ function getServerPatcheInfo() {
         // the file is done downloading
         filePath.close();
         console.log("serverPatche.json downloaded!");
-        console.log(LAUNCHER_PATH);
         fs.readFile("serverPatche.json", (err, data) => {
           if (err) {
             reject(err);
@@ -496,7 +495,8 @@ function shouldDownloadGame() {
       } else {
         localDataObject.options.gameIsDownloading = false;
         localDataObject.options.forceAskDownload = false;
-        scheduleSave(path.join(LAUNCHER_PATH, "patche.json"), localDataObject);
+        localDataObject.options.gamePath = path.join(LAUNCHER_PATH, "../");
+        scheduleSave(path.join(userDataPath, "patche.json"), localDataObject);
         resolve(false);
       }
   });
@@ -505,7 +505,7 @@ function shouldDownloadGame() {
 //Compares local patche.json vs serverPatche.json and returns list of patches, which needs to be downloaded
 async function isUpToDate() {
   
-  const localPatcheData = await readFile(path.join(LAUNCHER_PATH, "patche.json"));
+  const localPatcheData = await readFile(path.join(userDataPath, "patche.json"));
   let serverPatcheData = await getServerPatcheInfo();
 
   localDataObject = localPatcheData;
@@ -528,7 +528,7 @@ async function isUpToDate() {
 
     if (shouldDownload){
       localDataObject.options.gamePath = await askInstallLocation();
-      scheduleSave(path.join(LAUNCHER_PATH, "patche.json"), localDataObject);
+      scheduleSave(path.join(userDataPath, "patche.json"), localDataObject);
     }
 
     if (localDataObject.options.gameIsDownloading) {
@@ -596,7 +596,7 @@ async function downloadPatches(downloadList) {
     serverPatcheInfoData[downloadList[i]];
     let dataToSave = JSON.stringify(localDataObject);
     console.log(localDataObject);
-    scheduleSave(path.join(LAUNCHER_PATH, "patche.json"), dataToSave);
+    scheduleSave(path.join(userDataPath, "patche.json"), dataToSave);
   }
   win.webContents.send("info", "Vaše patche jsou aktuální");
 
@@ -618,7 +618,7 @@ async function downloadAndExtractGame() {
     fs.rmSync(RAR_PATH, { force: true });
     localDataObject.options.gameIsDownloading = false;
     localDataObject.options.forceAskDownload = true;
-    scheduleSave(path.join(LAUNCHER_PATH, "patche.json"), localDataObject);
+    scheduleSave(path.join(userDataPath, "patche.json"), localDataObject);
   } finally {
     powerSaveBlocker.stop(powerSaveBlockerId);
   }
@@ -629,8 +629,8 @@ async function main () {
   
   win.webContents.send("is-gm-on", GM_ON);
 
-  if (!fs.existsSync(path.join(LAUNCHER_PATH, "patche.json"))) {
-    writeFile(path.join(LAUNCHER_PATH, "patche.json"), JSON.stringify(localDataObject), true);
+  if (!fs.existsSync(path.join(userDataPath, "patche.json"))) {
+    writeFile(path.join(userDataPath, "patche.json"), JSON.stringify(localDataObject), true);
   }
 
   await isUpToDate().then(async (downloadList) => {
@@ -647,14 +647,14 @@ async function main () {
 
   ipcMain.on("mute", (event, isMuted) => {
     localDataObject.options.muted = isMuted;
-    scheduleSave(path.join(LAUNCHER_PATH, "patche.json"), localDataObject);
+    scheduleSave(path.join(userDataPath, "patche.json"), localDataObject);
   });
 
   //When user checks or unchecks the night checkbox
   if (GM_ON) {
     ipcMain.on("night-check", async (event, checked) => {
       localDataObject.options.night = checked;
-      scheduleSave(path.join(LAUNCHER_PATH, "patche.json"), localDataObject);
+      scheduleSave(path.join(userDataPath, "patche.json"), localDataObject);
       win.webContents.send("playable", false);
 
       //if checkbox is checked -> delete patch-U
