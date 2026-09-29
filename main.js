@@ -612,7 +612,7 @@ async function downloadAndExtractGame() {
   try {
     const gameSize = await getGameSize(GAME_URL);
     const RAR_PATH = rarPath(localDataObject.options.gamePath);
-    //await ensureEnoughDiskSpace(RAR_PATH, gameSize);
+    await ensureEnoughDiskSpace(RAR_PATH, gameSize);
     await downloadGameWithRetry(RAR_PATH);
     await extractGameWithProgress(RAR_PATH, localDataObject.options.gamePath);
     fs.rmSync(RAR_PATH, { force: true });
