@@ -594,7 +594,7 @@ async function downloadPatches(downloadList) {
     win.webContents.send("check-patche", downloadList[i]);
     localDataObject.patches[downloadList[i]] =
     serverPatcheInfoData[downloadList[i]];
-    let dataToSave = JSON.stringify(localDataObject);
+    let dataToSave = localDataObject;
     console.log(localDataObject);
     scheduleSave(path.join(userDataPath, "patche.json"), dataToSave);
   }
