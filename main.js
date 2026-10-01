@@ -45,7 +45,7 @@ GM_ON
         night: true,
         gameIsDownloading: false,
         forceAskDownload: true,
-        gamePath: path.join(LAUNCHER_PATH, "../"),
+        gamePath: "",
       },
     })
   : (localDataObject = {
@@ -60,7 +60,7 @@ GM_ON
         night: true,
         gameIsDownloading: false,
         forceAskDownload: true,
-        gamePath: path.join(LAUNCHER_PATH, "../"),
+        gamePath: "",
       },
     });
 
@@ -73,13 +73,14 @@ let serverPatcheInfoData = {
 let isFinishedUpdating = false;
 
 function isGameInstalled() {
-  if (localDataObject.options.gamePath && localDataObject.options.gamePath > 0){
-    if (fs.existsSync(path.join(localDataObject.options.gamePath, "Wow.exe")));
+  if (localDataObject.options.gamePath && localDataObject.options.gamePath.length > 0
+    && fs.existsSync((path.join(localDataObject.options.gamePath, "Wow.exe")))
+  ){
     win.webContents.send("check-patche", "client");
     return true;
   }
 
-  if (fs.existsSync("../Wow.exe")) { //manualni instalace
+  if (fs.existsSync(path.join(LAUNCHER_PATH, "../Wow.exe"))) { //manualni instalace
     localDataObject.options.gamePath = path.join(LAUNCHER_PATH, "../");
     scheduleSave(path.join(userDataPath, "patche.json"), localDataObject);
     win.webContents.send("check-patche", "client");
@@ -116,12 +117,22 @@ function getServerPatcheInfo() {
 
 // shows the themed overlay, waits for the user to confirm a path
 function askInstallLocation() {
+  const forbidenPaths = ["Program Files", "Program Files (x86)", "C:\\Bradavice Online"];
+
   return new Promise((resolve) => {
     win.webContents.send('show-path-picker', {
       defaultPath: defaultGameInstallDir(),
     });
 
     ipcMain.once('install-location-chosen', (event, chosenPath) => {
+      if (forbidenPaths.some((path) => chosenPath.includes(path))) {
+        dialog.showMessageBox(win, {
+          type: 'warning',
+          title: 'Upozornění',
+          message: 'Instalace do vybraného umístění není podporována. Vyberte jiné umístění.',
+        });
+        return resolve(askInstallLocation());
+      }
       localDataObject.options.forceAskDownload = false;
       resolve(chosenPath);
     });
@@ -612,6 +623,9 @@ async function downloadAndExtractGame() {
   try {
     const gameSize = await getGameSize(GAME_URL);
     const RAR_PATH = rarPath(localDataObject.options.gamePath);
+    if (!fs.existsSync(localDataObject.options.gamePath)) {
+      fs.mkdirSync(localDataObject.options.gamePath, { recursive: true });
+    }
     await ensureEnoughDiskSpace(RAR_PATH, gameSize);
     await downloadGameWithRetry(RAR_PATH);
     await extractGameWithProgress(RAR_PATH, localDataObject.options.gamePath);
