@@ -73,20 +73,24 @@ let serverPatcheInfoData = {
 let isFinishedUpdating = false;
 
 function isGameInstalled() {
+  console.log("Checking if game is installed");
   if (localDataObject.options.gamePath && localDataObject.options.gamePath.length > 0
     && fs.existsSync((path.join(localDataObject.options.gamePath, "Wow.exe")))
   ){
+    console.log("Hra nalezena, instalace: ", localDataObject.options.gamePath);
     win.webContents.send("check-patche", "client");
     return true;
   }
 
   if (fs.existsSync(path.join(LAUNCHER_PATH, "../Wow.exe"))) { //manualni instalace
+    console.log("Hra nalezena, manualni instalace instalace: ", path.join(LAUNCHER_PATH, "../Wow.exe"));
     localDataObject.options.gamePath = path.join(LAUNCHER_PATH, "../");
     scheduleSave(path.join(userDataPath, "patche.json"), localDataObject);
     win.webContents.send("check-patche", "client");
     return true;
   }
 
+  console.log("Hra nenalezena");
   return false;
 }
 
