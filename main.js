@@ -75,7 +75,7 @@ let isFinishedUpdating = false;
 function isGameInstalled() {
   console.log("Checking if game is installed");
   if (localDataObject.options.gamePath && localDataObject.options.gamePath.length > 0
-    && fs.existsSync((path.join(localDataObject.options.gamePath, "Wow.exe")))
+    && fs.existsSync(path.join(localDataObject.options.gamePath, "Wow.exe"))
   ){
     console.log("Hra nalezena, instalace: ", localDataObject.options.gamePath);
     win.webContents.send("check-patche", "client");
