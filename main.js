@@ -40,6 +40,7 @@ GM_ON
         "patch-P": 0,
         "patch-T": 0,
       },
+      patchDownloading: {},
       options: {
         muted: false,
         night: true,
@@ -55,6 +56,7 @@ GM_ON
         "patch-P": 0,
         "patch-T": 0,
       },
+      patchDownloading: {},
       options: {
         muted: false,
         night: true,
@@ -83,7 +85,7 @@ function isGameInstalled() {
   }
 
   if (fs.existsSync(path.join(LAUNCHER_PATH, "../Wow.exe"))) { //manualni instalace
-    console.log("Hra nalezena, manualni instalace instalace: ", path.join(LAUNCHER_PATH, "../Wow.exe"));
+    console.log("Hra nalezena, manualni instalace: ", path.join(LAUNCHER_PATH, "../Wow.exe"));
     localDataObject.options.gamePath = path.join(LAUNCHER_PATH, "../");
     scheduleSave(path.join(userDataPath, "patche.json"), localDataObject);
     win.webContents.send("check-patche", "client");
@@ -192,6 +194,8 @@ async function downloadPatchFromCloudFlare(url, filename) {
     return new Promise(async (resolve, reject) => {
     const destPath = path.join(localDataObject.options.gamePath, "Data", filename);
     const patchName = filename.replace(".MPQ", "");
+    const serverVersion = serverPatcheInfoData[patchName];
+
     let patchSize;
     try {
       patchSize = await getGameSize(url); // HEAD request, see earlier message
@@ -201,15 +205,28 @@ async function downloadPatchFromCloudFlare(url, filename) {
 
     let start = filePartSize(destPath);
 
-    if ( start >= patchSize) {
-      if (localDataObject.patches[patchName] !== serverPatcheInfoData[patchName]){ // file is fully downloaded but local patche.json is outdated, so we need to redownload it
-        fs.rmSync(destPath, { force: true });
-        start = filePartSize(destPath); // will be 0 now, since the file no longer exists
-      } else { // already fully downloaded — nothing to do
-        win.webContents.send('download-progress', 100);
-        return resolve();
-      }
+    // Is the file on disk a leftover from an older version?
+    // It's valid only if it's already the installed version,
+    // or a partial download of the version we're about to fetch.
+    const partialVersion = localDataObject.patchDownloading?.[patchName];
+    const isStale =
+      start > 0 &&
+      localDataObject.patches[patchName] !== serverVersion &&
+      partialVersion !== serverVersion;
+
+    if (isStale) {
+      fs.rmSync(destPath, { force: true });
+      start = 0;
     }
+
+    if (start >= patchSize) {
+      win.webContents.send('download-progress', 100);
+      return resolve();
+    }
+
+    localDataObject.patchDownloading = localDataObject.patchDownloading || {};
+    localDataObject.patchDownloading[patchName] = serverVersion;
+    scheduleSave(path.join(userDataPath, "patche.json"), localDataObject);
 
     const headers = { 'x-api-key': config.API_KEY };
     if (start > 0) headers.Range = `bytes=${start}-`;
@@ -264,6 +281,8 @@ async function downloadPatchFromCloudFlare(url, filename) {
         clearTimeout(stallTimer);
         activeReq = null;
         if (filePartSize(destPath) < total) return reject(new Error('CONNECTION_LOST'));
+        delete localDataObject.patchDownloading[patchName];
+        scheduleSave(path.join(userDataPath, "patche.json"), localDataObject);
         win.webContents.send('download-progress', 100);
         resolve();
       });
