@@ -189,6 +189,33 @@ ipcMain.handle('browse-install-location', async (event) => {
 //   });
 // }
 
+async function downloadFileFromCloudFlare(filename, destinationPath) {
+  const response = await fetch('https://bo-updater-worker.prokop-n.workers.dev/' + filename, {
+    headers: {
+      'x-api-key': config.API_KEY,
+    },
+  });
+
+  if (!response.ok) {
+    console.log(response);
+    throw new Error(`Download failed: ${response.status}`);
+  }
+
+  const buffer = await response.arrayBuffer();
+  fs.writeFileSync(path.join(destinationPath, filename), Buffer.from(buffer));
+}
+
+async function checkAndDownloadDllFiles(){
+  const destPath = localDataObject.options.gamePath;
+
+  if (!fs.existsSync(path.join(destPath, "dinput8.dll"))) {
+    await downloadFileFromCloudFlare("dinput8.dll", destPath);
+  }
+  if (!fs.existsSync(path.join(destPath, "BOMusician.dll"))) {
+    await downloadFileFromCloudFlare("BOMusician.dll", destPath);
+  }
+}
+
 //Dowonload patch from cloudflare worket and show progress in front-end
 async function downloadPatchFromCloudFlare(url, filename) {
     return new Promise(async (resolve, reject) => {
@@ -327,26 +354,6 @@ async function deleteNightPatch() {
     }
   });
 }
-
-//downloads directly patch-U from cloudfront
-async function downloadNightPatch(destinationPath) {
-  const response = await fetch('https://bo-updater-worker.prokop-n.workers.dev', {
-    headers: {
-      'x-api-key': config.API_KEY,
-    },
-  });
-
-  console.log("Response from cloudflare", response);
-
-  if (!response.ok) {
-    console.log(response);
-    throw new Error(`Download failed: ${response.status}`);
-  }
-
-  const buffer = await response.arrayBuffer();
-  fs.writeFileSync(destinationPath, Buffer.from(buffer));
-}
-
 
 // Downloads game with resume support. Call again after a pause/failure
 // and it picks up where it left off.
@@ -595,6 +602,10 @@ async function isUpToDate() {
     await deleteNightPatch();
   }
 
+  //Download dll files if they are not present
+  await checkAndDownloadDllFiles();
+  console.log("DLL files checked");
+
   const list = [];
 
   Object.keys(localPatcheData.patches).forEach((key, index) => {
@@ -703,7 +714,7 @@ async function main () {
       }
       //else download patch-U
       else {
-        await downloadNightPatch(path.join(localDataObject.options.gamePath, "Data", "patch-U.MPQ"));
+        await downloadFileFromCloudFlare("patch-U.MPQ", path.join(localDataObject.options.gamePath, "Data"));
         console.log("patch-U downloaded");
         if (isFinishedUpdating) {
           win.webContents.send("playable", true);
